@@ -37,10 +37,12 @@ public sealed class Game8LiveContractTests
 
             var current = Assert.Single(items, item => item.ExternalId == "aggregate:current");
             Assert.Equal("All Active Redeem Codes", current.Title);
-            Assert.NotEmpty(current.Document.Blocks.OfType<CodeBlock>());
+            Assert.NotEmpty(current.Document.Blocks.OfType<KeyValueBlock>().SelectMany(block => block.Items));
             Assert.False(current.ExpiresAtUtc.HasValue);
             var permanent = Assert.Single(items, item => item.ExternalId == "aggregate:permanent");
-            Assert.Contains(permanent.Document.Blocks.OfType<CodeBlock>(), block => block.Code == "NTENENE");
+            Assert.Contains(
+                permanent.Document.Blocks.OfType<KeyValueBlock>().SelectMany(block => block.Items),
+                item => item.Key == "NTENENE");
             Assert.Contains(items, item =>
                 item.ExternalId != "aggregate:current" &&
                 item.ExternalId != "aggregate:permanent" &&
@@ -81,10 +83,12 @@ public sealed class Game8LiveContractTests
 
             var current = Assert.Single(items, item => item.ExternalId == "aggregate:current");
             var permanent = Assert.Single(items, item => item.ExternalId == "aggregate:permanent");
-            Assert.NotEmpty(current.Document.Blocks.OfType<CodeBlock>());
-            Assert.Contains(current.Document.Blocks.OfType<KeyValueBlock>(), block =>
-                block.Items.Any(item => item.Key == "Rewards"));
-            Assert.Contains(permanent.Document.Blocks.OfType<CodeBlock>(), block => block.Code == "WUTHERINGGIFT");
+            Assert.NotEmpty(current.Document.Blocks.OfType<KeyValueBlock>().SelectMany(block => block.Items));
+            Assert.Contains(current.Document.Blocks.OfType<KeyValueBlock>().SelectMany(block => block.Items), item =>
+                item.Value.Contains("Rewards:", StringComparison.Ordinal));
+            Assert.Contains(
+                permanent.Document.Blocks.OfType<KeyValueBlock>().SelectMany(block => block.Items),
+                item => item.Key == "WUTHERINGGIFT");
         }
         finally
         {

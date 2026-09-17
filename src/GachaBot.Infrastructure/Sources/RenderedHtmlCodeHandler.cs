@@ -156,6 +156,7 @@ public sealed class RenderedHtmlCodeHandler(
     {
         var blocks = new List<ContentBlock>();
         var position = 1;
+        var codeItems = new List<KeyValueItem>();
         foreach (var candidate in codes)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -164,15 +165,19 @@ public sealed class RenderedHtmlCodeHandler(
                 candidate.Value,
                 definition.Url,
                 candidate.ExpiresAtUtc);
-            blocks.Add(new CodeBlock(code.Code, position++));
-            var details = new List<KeyValueItem>();
+            var details = new List<string>();
             if (!string.IsNullOrWhiteSpace(candidate.Rewards))
             {
-                details.Add(new KeyValueItem("Rewards", candidate.Rewards));
+                details.Add($"Rewards: {candidate.Rewards}");
             }
 
-            details.Add(new KeyValueItem("Expires", candidate.ExpiryDisplay));
-            blocks.Add(new KeyValueBlock(details, position++));
+            details.Add($"Expires: {candidate.ExpiryDisplay}");
+            codeItems.Add(new KeyValueItem(code.Code, string.Join('\n', details)));
+        }
+
+        if (codeItems.Count > 0)
+        {
+            blocks.Add(new KeyValueBlock(codeItems, position++));
         }
 
         if (codes.Count == 0)
