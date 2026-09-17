@@ -27,7 +27,7 @@ public sealed class Game8LiveContractTests
                 definition,
                 new SourceHandlerResolver([new RenderedHtmlCodeHandler(
                     pageClient,
-                    new FixedTimeProvider(new DateTimeOffset(2026, 8, 13, 12, 0, 0, TimeSpan.Zero)))]));
+                    new FixedTimeProvider(new DateTimeOffset(2026, 9, 17, 12, 0, 0, TimeSpan.Zero)))]));
             var items = new List<SourceContentSnapshot>();
 
             await foreach (var item in source.FetchAsync(TestContext.Current.CancellationToken))
@@ -36,12 +36,15 @@ public sealed class Game8LiveContractTests
             }
 
             var current = Assert.Single(items, item => item.ExternalId == "aggregate:current");
-            Assert.Equal("All Version 1.3 Redeem Codes", current.Title);
-            Assert.Empty(current.Document.Blocks.OfType<CodeBlock>());
-            Assert.True(current.ExpiresAtUtc.HasValue);
+            Assert.Equal("All Active Redeem Codes", current.Title);
+            Assert.NotEmpty(current.Document.Blocks.OfType<CodeBlock>());
+            Assert.False(current.ExpiresAtUtc.HasValue);
             var permanent = Assert.Single(items, item => item.ExternalId == "aggregate:permanent");
             Assert.Contains(permanent.Document.Blocks.OfType<CodeBlock>(), block => block.Code == "NTENENE");
-            Assert.Contains(items, item => item.ExternalId == "FOGDENGAME" && item.ExpiresAtUtc.HasValue);
+            Assert.Contains(items, item =>
+                item.ExternalId != "aggregate:current" &&
+                item.ExternalId != "aggregate:permanent" &&
+                item.ExpiresAtUtc.HasValue);
         }
         finally
         {

@@ -639,6 +639,85 @@ public sealed class ConfiguredSourceTests
     }
 
     [Fact]
+    public async Task RenderedHtmlCodes_UsesAllActiveSectionWhenCurrentVersionSectionIsMissing()
+    {
+        const string html = """
+            <main>
+              <h2>All Neverness to Everness Redeem Codes</h2>
+              <h2>All Active Redeem Codes</h2>
+              <table>
+                <tr>
+                  <td>
+                    <input class="a-clipboard__textInput" type="text" value="WITCHHOUSE" readonly>
+                    <span class="a-red">Expiry Date: 09/20/2026</span>
+                  </td>
+                  <td><div class="align">・ Annulith x100</div></td>
+                </tr>
+                <tr>
+                  <td>
+                    <input class="a-clipboard__textInput" type="text" value="COMEBACK" readonly>
+                    <span class="a-red">Expiry Date: TBD</span>
+                  </td>
+                  <td><div class="align">・ Fabricated Dice x1</div></td>
+                </tr>
+                <tr>
+                  <td>
+                    <input class="a-clipboard__textInput" type="text" value="NTENENE" readonly>
+                    <span class="a-red">Expiry Date: TBA</span>
+                  </td>
+                  <td><div class="align">・ Fons x10,000</div></td>
+                </tr>
+              </table>
+              <h2>Neverness to Everness Expired Codes</h2>
+            </main>
+            """;
+        var definition = new SourceDefinition
+        {
+            Key = "game8-neverness-to-everness-redeem-codes",
+            Game = GameKey.NevernessToEverness,
+            Trust = SourceTrust.ReviewRequired,
+            Handler = RenderedHtmlCodeHandler.HandlerKey,
+            Url = new Uri("https://game8.co/games/Neverness-to-Everness/archives/593718"),
+            BrowserCollection = new BrowserCollectionRules
+            {
+                ReadySelector = "input.a-clipboard__textInput",
+                SectionHeadingSelector = "h2, h3",
+                SectionHeadingContains = ["Redeem Codes"],
+                SectionHeadingExcludes = ["Expired"],
+                CurrentSectionHeadingContains = ["Version"],
+                PermanentSectionHeadingContains = ["All Active Redeem Codes"],
+                ItemSelector = "input.a-clipboard__textInput",
+                ValueAttribute = "value",
+                RowSelector = "tr",
+                ExpirySelector = ".a-red",
+                ExpiryPattern = @"Expiry Date:\s*(?<value>\d{2}/\d{2}/\d{4}|TBD|TBA)",
+                ExpiryDateFormats = ["MM/dd/yyyy"],
+                UnknownExpiryValues = ["TBD"],
+                PermanentExpiryValues = ["TBA"],
+                RewardItemSelector = "td:nth-child(2) .align",
+                CurrentAggregateExternalId = "aggregate:current",
+                PermanentAggregateExternalId = "aggregate:permanent",
+                PermanentTitle = "Permanent Redeem Codes",
+            },
+        };
+        var source = ConfiguredSource(
+            definition,
+            new RenderedHtmlCodeHandler(
+                new StubRenderedPageClient(html),
+                new FixedTimeProvider(new DateTimeOffset(2026, 9, 17, 12, 0, 0, TimeSpan.Zero))));
+
+        var items = await ReadAllAsync(source);
+
+        var current = Assert.Single(items, item => item.ExternalId == "aggregate:current");
+        Assert.Equal("All Active Redeem Codes", current.Title);
+        Assert.Equal(
+            ["WITCHHOUSE", "COMEBACK"],
+            current.Document.Blocks.OfType<CodeBlock>().Select(block => block.Code));
+        var permanent = Assert.Single(items, item => item.ExternalId == "aggregate:permanent");
+        Assert.Equal(["NTENENE"], permanent.Document.Blocks.OfType<CodeBlock>().Select(block => block.Code));
+    }
+
+    [Fact]
     public async Task RenderedHtmlCodes_SeparatesDatedAndPermanentCodesAndFormatsDiscordExpiry()
     {
         var html = TestSourceFixture.Read("game8", "wuwa-rendered-fragment.html");

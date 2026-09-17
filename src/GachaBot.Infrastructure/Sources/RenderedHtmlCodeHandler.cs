@@ -57,15 +57,18 @@ public sealed class RenderedHtmlCodeHandler(
         }
 
         var now = timeProvider.GetUtcNow();
-        var currentCandidates = FindCodes(
-            currentSections.SelectMany(section => section.Rows).ToArray(),
-            rules);
+        var currentRows = currentSections.Count == 0
+            ? permanentSections.SelectMany(section => section.Rows).ToArray()
+            : currentSections.SelectMany(section => section.Rows).ToArray();
+        var currentCandidates = FindCodes(currentRows, rules);
         var currentCodes = currentCandidates
             .Where(code => code.ExpiryRecognized &&
                 !code.IsPermanent &&
                 (code.ExpiresAtUtc is null || now < code.ExpiresAtUtc.Value))
             .ToArray();
-        var currentTitle = currentSections.FirstOrDefault()?.Title ?? "Current Redeem Codes";
+        var currentTitle = currentSections.FirstOrDefault()?.Title ??
+            permanentSections.FirstOrDefault()?.Title ??
+            "Current Redeem Codes";
         yield return new SourceContentSnapshot(
             definition.Key,
             rules.CurrentAggregateExternalId,
