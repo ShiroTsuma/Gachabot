@@ -631,8 +631,7 @@ public sealed class ConfiguredSourceTests
         Assert.DoesNotContain(current.Document.Blocks.OfType<CodeBlock>(), block => block.Code == "WELCOMETONTE");
         var permanent = Assert.Single(items, candidate => candidate.ExternalId == "aggregate:permanent");
         Assert.Equal("Permanent Redeem Codes", permanent.Title);
-        var permanentCode = Assert.Single(Assert.Single(permanent.Document.Blocks.OfType<KeyValueBlock>()).Items);
-        Assert.Equal("NTENENE", permanentCode.Key);
+        Assert.Equal(["NTENENE"], permanent.Document.Blocks.OfType<CodeBlock>().Select(block => block.Code));
         var archived = Assert.Single(items, candidate => candidate.ExternalId == "FOGDENGAME");
         Assert.True(archived.ExpiresAtUtc < new DateTimeOffset(2026, 8, 13, 12, 0, 0, TimeSpan.Zero));
         Assert.Contains(archived.Document.Blocks.OfType<KeyValueBlock>(), block => block.Items.Any(field =>
@@ -711,15 +710,20 @@ public sealed class ConfiguredSourceTests
 
         var current = Assert.Single(items, item => item.ExternalId == "aggregate:current");
         Assert.Equal("All Active Redeem Codes", current.Title);
-        var currentCodes = Assert.Single(current.Document.Blocks.OfType<KeyValueBlock>()).Items;
-        Assert.Equal(["WITCHHOUSE", "COMEBACK"], currentCodes.Select(item => item.Key));
-        var witchHouse = Assert.Single(currentCodes, item => item.Key == "WITCHHOUSE");
-        Assert.Contains("Rewards: Annulith x100", witchHouse.Value, StringComparison.Ordinal);
-        Assert.Contains("Expires: 20.09.2026", witchHouse.Value, StringComparison.Ordinal);
-        var permanent = Assert.Single(items, item => item.ExternalId == "aggregate:permanent");
         Assert.Equal(
-            ["NTENENE"],
-            Assert.Single(permanent.Document.Blocks.OfType<KeyValueBlock>()).Items.Select(item => item.Key));
+            ["WITCHHOUSE", "COMEBACK"],
+            current.Document.Blocks.OfType<CodeBlock>().Select(block => block.Code));
+        var currentBlocks = current.Document.Blocks.ToArray();
+        var witchHouseIndex = Array.FindIndex(currentBlocks, block =>
+            block is CodeBlock code && code.Code == "WITCHHOUSE");
+        Assert.True(witchHouseIndex >= 0);
+        var witchHouseDetails = Assert.IsType<KeyValueBlock>(currentBlocks[witchHouseIndex + 1]);
+        Assert.Contains(witchHouseDetails.Items, item =>
+            item.Key == "Rewards" && item.Value.Contains("Annulith x100", StringComparison.Ordinal));
+        Assert.Contains(witchHouseDetails.Items, item =>
+            item.Key == "Expires" && item.Value.Contains("20.09.2026", StringComparison.Ordinal));
+        var permanent = Assert.Single(items, item => item.ExternalId == "aggregate:permanent");
+        Assert.Equal(["NTENENE"], permanent.Document.Blocks.OfType<CodeBlock>().Select(block => block.Code));
     }
 
     [Fact]
@@ -766,14 +770,15 @@ public sealed class ConfiguredSourceTests
         var current = Assert.Single(items, item => item.ExternalId == "aggregate:current");
         var permanent = Assert.Single(items, item => item.ExternalId == "aggregate:permanent");
 
-        var currentCode = Assert.Single(Assert.Single(current.Document.Blocks.OfType<KeyValueBlock>()).Items);
-        Assert.Equal("F5F4D3B2A2", currentCode.Key);
-        Assert.Contains("Expires: 19.08.2026 (<t:1787184000:R>)", currentCode.Value, StringComparison.Ordinal);
-        var permanentCode = Assert.Single(Assert.Single(permanent.Document.Blocks.OfType<KeyValueBlock>()).Items);
-        Assert.Equal("WUTHERINGGIFT", permanentCode.Key);
-        Assert.Contains("Rewards:", permanentCode.Value, StringComparison.Ordinal);
-        Assert.Contains("Shell Credit x15,000", permanentCode.Value, StringComparison.Ordinal);
-        Assert.Contains("Expires: No expiry announced", permanentCode.Value, StringComparison.Ordinal);
+        Assert.Equal(["F5F4D3B2A2"], current.Document.Blocks.OfType<CodeBlock>().Select(block => block.Code));
+        Assert.Equal(["WUTHERINGGIFT"], permanent.Document.Blocks.OfType<CodeBlock>().Select(block => block.Code));
+        var details = permanent.Document.Blocks.OfType<KeyValueBlock>().ToArray();
+        Assert.Contains(details, block => block.Items.Any(field =>
+            field.Key == "Rewards" && field.Value.Contains("Shell Credit x15,000", StringComparison.Ordinal)));
+        Assert.Contains(details, block => block.Items.Any(field =>
+            field.Key == "Expires" && field.Value == "No expiry announced"));
+        Assert.Contains(current.Document.Blocks.OfType<KeyValueBlock>(), block => block.Items.Any(field =>
+            field.Key == "Expires" && field.Value == "19.08.2026 (<t:1787184000:R>)"));
     }
 
     [Fact]

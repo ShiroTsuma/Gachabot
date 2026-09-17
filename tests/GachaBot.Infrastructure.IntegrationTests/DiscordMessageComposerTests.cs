@@ -101,9 +101,44 @@ public sealed class DiscordMessageComposerTests
             $"```{Environment.NewLine}WELCOMETONTE{Environment.NewLine}```",
             Assert.Single(Assert.Single(result.Messages).Embeds).Description,
             StringComparison.Ordinal);
-        var fields = Assert.Single(result.Messages).Embeds.Single().Fields;
-        Assert.Contains(fields, field => field.Name == "Rewards" && field.Value == "Celebration Fireworks Avatar Frame");
-        Assert.Contains(fields, field => field.Name == "Expires" && field.Value == "08/18/2026");
+        var embed = Assert.Single(Assert.Single(result.Messages).Embeds);
+        Assert.Empty(embed.Fields);
+        Assert.Contains("**Rewards:** Celebration Fireworks Avatar Frame", embed.Description, StringComparison.Ordinal);
+        Assert.Contains("**Expires:** 08/18/2026", embed.Description, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Compose_RedeemCode_KeepsEachCodeWithItsDetailsInOrder()
+    {
+        var document = ContentDocument.Create(
+        [
+            new CodeBlock("WITCHHOUSE", 1),
+            new KeyValueBlock(
+            [
+                new KeyValueItem("Rewards", "Annulith x100"),
+                new KeyValueItem("Expires", "20.09.2026"),
+            ], 2),
+            new CodeBlock("THEWHOOTS", 3),
+            new KeyValueBlock(
+            [
+                new KeyValueItem("Rewards", "Colorless Dye x5"),
+                new KeyValueItem("Expires", "20.09.2026"),
+            ], 4),
+        ]);
+
+        var result = DiscordMessageComposer.Compose("All Active Redeem Codes", document, null);
+
+        var embed = Assert.Single(Assert.Single(result.Messages).Embeds);
+        Assert.Empty(embed.Fields);
+        var description = embed.Description!;
+        Assert.Contains($"```{Environment.NewLine}WITCHHOUSE{Environment.NewLine}```", description, StringComparison.Ordinal);
+        Assert.Contains($"```{Environment.NewLine}THEWHOOTS{Environment.NewLine}```", description, StringComparison.Ordinal);
+        Assert.True(description.IndexOf("WITCHHOUSE", StringComparison.Ordinal) <
+            description.IndexOf("Annulith x100", StringComparison.Ordinal));
+        Assert.True(description.IndexOf("Annulith x100", StringComparison.Ordinal) <
+            description.IndexOf("THEWHOOTS", StringComparison.Ordinal));
+        Assert.True(description.IndexOf("THEWHOOTS", StringComparison.Ordinal) <
+            description.IndexOf("Colorless Dye x5", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -119,9 +154,9 @@ public sealed class DiscordMessageComposerTests
 
         var result = DiscordMessageComposer.Compose("Current Redeem Codes", document, null);
 
-        var field = Assert.Single(Assert.Single(result.Messages).Embeds.Single().Fields);
-        Assert.Equal("Expires", field.Name);
-        Assert.Equal("19.08.2026 (<t:1787184000:R>)", field.Value);
+        var embed = Assert.Single(Assert.Single(result.Messages).Embeds);
+        Assert.Empty(embed.Fields);
+        Assert.Contains("**Expires:** 19.08.2026 (<t:1787184000:R>)", embed.Description, StringComparison.Ordinal);
     }
 
     [Fact]

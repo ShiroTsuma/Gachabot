@@ -18,8 +18,10 @@ public static class DiscordMessageComposer
         var images = new List<DiscordImage>();
         var autoEmbedLinks = new List<Uri>();
 
-        foreach (var block in document.Blocks)
+        var blocks = document.Blocks.ToArray();
+        for (var index = 0; index < blocks.Length; index++)
         {
+            var block = blocks[index];
             switch (block)
             {
                 case HeadingBlock heading:
@@ -46,7 +48,17 @@ public static class DiscordMessageComposer
                         new DiscordEmbedField(item.Key, item.Value, false)));
                     break;
                 case CodeBlock code:
-                    descriptionUnits.Add(FormatCode(code));
+                    if (index + 1 < blocks.Length &&
+                        blocks[index + 1] is KeyValueBlock codeDetails)
+                    {
+                        descriptionUnits.Add($"{FormatCode(code)}{Environment.NewLine}{Environment.NewLine}{FormatDetails(codeDetails)}");
+                        index++;
+                    }
+                    else
+                    {
+                        descriptionUnits.Add(FormatCode(code));
+                    }
+
                     break;
             }
         }
@@ -267,6 +279,10 @@ public static class DiscordMessageComposer
         var safeCode = code.Code.Replace("```", "``\u200B`", StringComparison.Ordinal);
         return $"```{code.Language}{Environment.NewLine}{safeCode}{Environment.NewLine}```";
     }
+
+    private static string FormatDetails(KeyValueBlock details) => string.Join(
+        Environment.NewLine,
+        details.Items.Select(item => $"**{EscapePlainText(item.Key)}:** {EscapePlainText(item.Value)}"));
 
     private static string EscapeLabel(string value) => value.Replace("]", "\\]", StringComparison.Ordinal);
 
