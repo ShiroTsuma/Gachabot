@@ -80,7 +80,7 @@
     {
       "Key": "game8-wuthering-waves-redeem-codes",
       "Game": "WutheringWaves",
-      "Trust": "ReviewRequired",
+      "Trust": "Trusted",
       "Handler": "rendered-html-code-collection",
       "Url": "https://game8.co/games/Wuthering-Waves/archives/453149",
       "BrowserCollection": {
@@ -111,7 +111,7 @@
     {
       "Key": "game8-neverness-to-everness-redeem-codes",
       "Game": "NevernessToEverness",
-      "Trust": "ReviewRequired",
+      "Trust": "Trusted",
       "Handler": "rendered-html-code-collection",
       "Url": "https://game8.co/games/Neverness-to-Everness/archives/593718",
       "BrowserCollection": {
