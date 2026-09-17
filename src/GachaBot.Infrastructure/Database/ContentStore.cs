@@ -179,8 +179,8 @@ public sealed class ContentStore(
                     .ConfigureAwait(false);
             }
             else if (!isAlreadyExpired &&
-                     existing.Status == ContentStatus.Archived &&
-                     existing.ArchiveReason != ArchiveReason.Manual)
+                      existing.Status == ContentStatus.Archived &&
+                      existing.ArchiveReason != ArchiveReason.Manual)
             {
                 existing.Status = disposition == PublicationDisposition.AwaitReview
                     ? ContentStatus.Draft
@@ -190,6 +190,22 @@ public sealed class ContentStore(
                 existing.AwaitingReview = disposition == PublicationDisposition.AwaitReview;
                 existing.ExpiresAtUtc = snapshot.ExpiresAtUtc;
                 existing.UpdatedAtUtc = now;
+            }
+            else if (!isAlreadyExpired &&
+                     existing.AwaitingReview &&
+                     disposition == PublicationDisposition.AutoPublish &&
+                     !IsManualArchive(existing))
+            {
+                existing.AwaitingReview = false;
+                if (existing.Status != ContentStatus.Published)
+                {
+                    existing.Status = ContentStatus.Active;
+                }
+
+                existing.ScheduledAtUtc = publicationDueAtUtc;
+                existing.UpdatedAtUtc = now;
+                await AddMissingPublicationsAsync(existing, publicationDueAtUtc, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             if (!isAlreadyExpired &&
@@ -432,6 +448,21 @@ public sealed class ContentStore(
                 existing.ArchiveReason = null;
                 existing.AwaitingReview = disposition == PublicationDisposition.AwaitReview;
                 existing.UpdatedAtUtc = now;
+            }
+            else if (!isRetentionExpired &&
+                     existing.AwaitingReview &&
+                     disposition == PublicationDisposition.AutoPublish &&
+                     !IsManualArchive(existing))
+            {
+                existing.AwaitingReview = false;
+                if (existing.Status != ContentStatus.Published)
+                {
+                    existing.Status = ContentStatus.Active;
+                }
+
+                existing.UpdatedAtUtc = now;
+                await AddMissingPublicationsAsync(existing, now, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             return ContentUpsertOutcome.Unchanged;

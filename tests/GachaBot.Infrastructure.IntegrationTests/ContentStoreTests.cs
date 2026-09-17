@@ -76,6 +76,33 @@ public sealed class ContentStoreTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpsertAsync_AutoPublishPromotesExistingReviewDraftWithUnchangedDocument()
+    {
+        var destinations = new FixedDestinationStore(
+        [
+            new GuildDestination(101, 201, 301, true, GuildDestinationGames.All, DateTimeOffset.UtcNow),
+        ]);
+        var store = new ContentStore(_db, TimeProvider.System, destinations);
+        var snapshot = Snapshot("Review candidate");
+
+        await store.UpsertAsync(
+            snapshot,
+            PublicationDisposition.AwaitReview,
+            TestContext.Current.CancellationToken);
+        var outcome = await store.UpsertAsync(
+            snapshot,
+            PublicationDisposition.AutoPublish,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(ContentUpsertOutcome.Unchanged, outcome);
+        var content = await _db.ContentItems.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.False(content.AwaitingReview);
+        Assert.Equal(ContentStatus.Active, content.Status);
+        var publication = await _db.Publications.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(101, publication.DestinationGuildId);
+    }
+
+    [Fact]
     public async Task UpsertAsync_AutoPublishSkipsGuildsThatDidNotSelectTheContentGame()
     {
         var destinations = new FixedDestinationStore(
