@@ -14,7 +14,7 @@ RUN dotnet publish src/GachaBot.Web/GachaBot.Web.csproj \
     --no-restore \
     --output /app/publish
 
-FROM mcr.microsoft.com/playwright/dotnet:v1.61.0-noble AS runtime
+FROM mcr.microsoft.com/playwright/dotnet:v1.63.0-noble AS runtime
 COPY --from=mcr.microsoft.com/dotnet/aspnet:10.0 /usr/share/dotnet /usr/share/dotnet
 WORKDIR /app
 RUN mkdir -p /app/data/browser-profile && chown -R pwuser:pwuser /app/data
