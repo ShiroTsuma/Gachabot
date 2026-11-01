@@ -27,7 +27,7 @@ Gachabot collects announcements and event calendars into one operational view, t
 
 The dashboard shows imported content, source health, upcoming events, pending publications and delivery history.
 
-![Gachabot dashboard with live publication counts and source check time](docs/images/dashboard.png)
+![Gachabot dashboard with live publication counts and source check time](docs/images/dashboard-live.png)
 
 *Dashboard captured from a running self-hosted instance.*
 
