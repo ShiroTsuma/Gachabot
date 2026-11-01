@@ -8,7 +8,6 @@
 @if (_destination is null)
 {
     <section class="empty-state">
-        <p class="eyebrow">GUILD NOT FOUND</p>
         <h1>This configuration was not found.</h1>
         <a href="/guilds">Return to guilds →</a>
     </section>
@@ -62,7 +61,6 @@ else
     <section class="guild-outbox" aria-labelledby="scheduled-publications-heading">
         <div class="outbox-heading">
             <div>
-                <p class="eyebrow">OUTBOX / SCHEDULED</p>
                 <h2 id="scheduled-publications-heading">What will be published</h2>
                 <p>Items waiting to be sent to <strong>#@DisplayChannelName(_destination)</strong>.</p>
             </div>
@@ -101,7 +99,6 @@ else
     <section class="publication-history">
         <div class="history-heading">
             <div>
-                <p class="eyebrow">HISTORY / LAST 50</p>
                 <h2>Sent and settled publications</h2>
             </div>
             <span>@_history.Count records</span>

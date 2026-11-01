@@ -6,16 +6,15 @@
 
 <section class="page-heading compact">
     <div>
-        <p class="eyebrow">MANUAL POST</p>
         <h1>New post</h1>
-        <p class="lede">Build a message from text, a link, and artwork. The block model can grow without changing the publisher.</p>
+        <p class="lede">Add a message, source link and optional image. Save a draft or choose a publication time.</p>
     </div>
 </section>
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync" FormName="create-content" class="editor-grid">
     <DataAnnotationsValidator />
     <section class="editor-panel editor-content-panel">
-        <div class="section-label">CONTENT</div>
+        <div class="section-label">Message</div>
         <label>Text
             <InputTextArea @bind-Value="_model.Body" rows="8" placeholder="The most important information for players…" />
             <ValidationMessage For="() => _model.Body" />
@@ -33,7 +32,7 @@
 
     <aside class="editor-sidebar">
         <section class="editor-panel">
-            <div class="section-label">DETAILS</div>
+            <div class="section-label">Details</div>
             <div class="field-row two">
                 <label>Game
                     <InputSelect @bind-Value="_model.Game">
@@ -57,7 +56,7 @@
         </section>
 
         <section class="editor-panel schedule-panel">
-            <div class="section-label">PUBLICATION</div>
+            <div class="section-label">Publication</div>
             <label>Date and time <span class="optional">Europe/Warsaw; blank = draft</span>
                 <InputDate @bind-Value="_model.PublishAtLocal" Type="InputDateType.DateTimeLocal" />
             </label>

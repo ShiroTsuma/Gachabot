@@ -6,7 +6,6 @@
 
 <section class="page-heading compact event-heading">
     <div>
-        <p class="eyebrow">TIMELINE</p>
         <h1>Events</h1>
         <p class="lede">Current and upcoming in-game activities. Times use your local timezone.</p>
     </div>
@@ -38,8 +37,7 @@ else
     @if (VisibleEvents.Count == 0)
     {
         <section class="empty-state">
-            <p class="eyebrow">TIMELINE IS EMPTY</p>
-            <h2>There are no current or upcoming events yet.</h2>
+                <h2>There are no current or upcoming events yet.</h2>
             <p>Run a source import to populate this view.</p>
         </section>
     }
@@ -92,7 +90,6 @@ else
 
         <section class="event-agenda" aria-label="Event list">
             <header>
-                <p class="eyebrow">AGENDA</p>
                 <h2>@VisibleEvents.Count events</h2>
             </header>
             <div>

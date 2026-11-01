@@ -25,9 +25,9 @@
 
 Gachabot collects announcements and event calendars into one operational view, then publishes updates independently to each Discord guild. Choose which games and subjects a server follows, where updates appear, and when event reminders should arrive.
 
-The dashboard is called **Schmidley** in the application. It shows imported content, source health, upcoming events, pending publications and delivery history.
+The dashboard shows imported content, source health, upcoming events, pending publications and delivery history.
 
-![Schmidley dashboard in a fresh local preview instance](docs/images/dashboard.png)
+![Gachabot dashboard in a fresh local preview instance](docs/images/dashboard.png)
 
 *Actual local dashboard with an empty database. Source workers and Discord delivery are disabled in preview mode.*
 
@@ -92,7 +92,7 @@ flowchart LR
     Sources[Announcements and calendars] --> Import[Source adapters]
     Import --> Store[(PostgreSQL)]
     Import --> Media[(S3 media archive)]
-    Store <--> Dashboard[Schmidley dashboard]
+    Store <--> Dashboard[Gachabot dashboard]
     Store --> Queue[Per-guild schedules and retries]
     Media --> Delivery[Discord delivery]
     Queue --> Delivery

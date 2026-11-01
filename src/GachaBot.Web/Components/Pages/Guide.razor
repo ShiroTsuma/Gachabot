@@ -4,7 +4,6 @@
 
 <section class="page-heading compact guide-heading">
     <div>
-        <p class="eyebrow">GUIDE</p>
         <h1>How it works</h1>
         <p class="lede">From the first source scan to a message published on Discord.</p>
     </div>
@@ -19,12 +18,10 @@
 
 <section class="guide-reference">
     <article>
-        <p class="eyebrow">DISCORD FORMAT</p>
-        <h2>One document, one publication plan</h2>
+        <h2>Discord message format</h2>
         <p>The embed title links to the source. Text and ordinary links form its description, key/value data becomes fields, and images become the primary image and subsequent embeds. A YouTube URL remains in the message body so Discord can render its own player; this requires the Embed Links permission. The preview and publisher use the same composer output.</p>
     </article>
     <article>
-        <p class="eyebrow">API LIMITS</p>
         <h2>Splitting happens automatically</h2>
         <p>The bot observes Discord's 4,096-character description limit, 25 fields per embed, 10 embeds, and 6,000 embed characters per message. Larger entries are split into multiple updatable Discord messages.</p>
     </article>
@@ -32,15 +29,14 @@
 
 <section class="guide-reference">
     <article>
-        <p class="eyebrow">FIRST RUN</p>
-        <h2>The baseline does not publish an old catalogue</h2>
+        <h2>First source refresh</h2>
         <p>The first successful scan stores the source state. Later scans compare a document hash against PostgreSQL. The bot creates a revision and publication only after finding new or changed content, according to the source trust policy.</p>
     </article>
     <article>
         <p class="eyebrow">STATUSES</p>
         <dl class="guide-definitions">
             <div><dt>Draft</dt><dd>An entry without a due time, or material waiting for review.</dd></div>
-            <div><dt>Scheduled</dt><dd>An entry in the durable publication queue.</dd></div>
+            <div><dt>Scheduled</dt><dd>A post waiting for its scheduled delivery time.</dd></div>
             <div><dt>Published</dt><dd>Discord returned a message identifier.</dd></div>
             <div><dt>Archive</dt><dd>The dashboard shows why it was archived: manual, expired, or superseded. A manually archived item is not reactivated by a refetch.</dd></div>
         </dl>
@@ -49,13 +45,10 @@
 
 <section class="guide-reference">
     <article>
-        <p class="eyebrow">MANUAL ENTRY</p>
         <h2>Add an announcement outside automatic sources</h2>
         <p>Open <a href="/content/new">New entry</a>, choose a game and type, then add text, links, and image URLs. Date and time use the browser's timezone while the database stores them in UTC.</p>
-        <p>Every source has its own PostgreSQL schema; manual entries use the <code>manual</code> schema. Perform a full reset carefully on the PostgreSQL server—never by deleting files from the application container.</p>
     </article>
     <article>
-        <p class="eyebrow">SOURCE ERROR</p>
         <h2>Check the source card and logs</h2>
         <p>A failed scan does not remove previous data. The card keeps the attempt time and a shortened error message. Full details are available in the container logs.</p>
         <pre><code>docker compose logs --tail 200 gachabot</code></pre>

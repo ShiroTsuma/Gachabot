@@ -5,16 +5,15 @@
 
 <section class="page-heading compact">
     <div>
-        <p class="eyebrow">MESSAGE INDEX</p>
         <h1>Content</h1>
-        <p class="lede">Announcements, updates, and codes — events have their own timeline.</p>
+        <p class="lede">Announcements, updates and redeem codes. See Events for the calendar.</p>
     </div>
     <a class="button button-primary" href="/content/new">+ New post</a>
 </section>
 
 @if (_items is null)
 {
-    <p class="loading">Loading index…</p>
+    <p class="loading">Loading content…</p>
 }
 else
 {
@@ -77,8 +76,7 @@ else
     @if (VisibleItems.Count == 0)
     {
         <section class="empty-state">
-            <p class="eyebrow">NO MATCHES</p>
-            <h2>No messages match the selected filters.</h2>
+                <h2>No messages match the selected filters.</h2>
             <a href="/content">Clear filters →</a>
         </section>
     }
