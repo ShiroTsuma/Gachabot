@@ -13,7 +13,7 @@ services:
       Workers__Enabled: "false"
       BrowserAutomation__ChromiumSandbox: "false"
       DatabaseStorage__ConnectionString: Host=postgres;Database=gachabot;Username=preview;Password=local-preview-only
-      S3Media__Endpoint: http://storage:9000
+      S3Media__Endpoint: http://storage:8333
       S3Media__Region: us-east-1
       S3Media__AccessKey: preview-user
       S3Media__SecretKey: local-preview-only
@@ -24,8 +24,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      storage-init:
-        condition: service_completed_successfully
+      storage:
+        condition: service_healthy
 
   postgres:
     image: postgres:17-alpine
@@ -42,31 +42,19 @@ services:
       retries: 30
 
   storage:
-    image: quay.io/minio/minio:latest
-    command: server /data
+    image: chrislusf/seaweedfs:4.51
+    command: mini -dir=/data
     environment:
-      MINIO_ROOT_USER: preview-user
-      MINIO_ROOT_PASSWORD: local-preview-only
+      AWS_ACCESS_KEY_ID: preview-user
+      AWS_SECRET_ACCESS_KEY: local-preview-only
+      S3_BUCKET: gachabot-media
     volumes:
       - storage-data:/data
-
-  storage-init:
-    image: quay.io/minio/mc:latest
-    environment:
-      MC_HOST_preview: http://preview-user:local-preview-only@storage:9000
-    entrypoint: /bin/sh
-    command:
-      - -ec
-      - |
-        attempt=0
-        until mc ready preview; do
-          attempt=$$((attempt + 1))
-          [ "$$attempt" -lt 60 ] || exit 1
-          sleep 2
-        done
-        mc mb --ignore-existing preview/gachabot-media
-    depends_on:
-      - storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9333/cluster/status"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
 
 volumes:
   dashboard-data:

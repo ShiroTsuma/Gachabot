@@ -53,7 +53,7 @@ The dashboard is called **Schmidley** in the application. It shows imported cont
 
 ## Preview the dashboard
 
-**Requires Docker with Compose.** This isolated configuration includes PostgreSQL and S3-compatible storage. No `.env`, Discord account, bot token, OAuth setup or TLS certificate is needed.
+**Requires Docker with Compose.** This isolated configuration includes PostgreSQL and SeaweedFS for S3-compatible storage. No `.env`, Discord account, bot token, OAuth setup or TLS certificate is needed.
 
 ```sh
 git clone https://github.com/ShiroTsuma/Gachabot.git
