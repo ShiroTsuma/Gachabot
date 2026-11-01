@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Gachabot">
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#16171f" stroke="#ffd447" stroke-width="3"/>
+  <path d="M88 45a31 31 0 1 0 3 35V66H66" fill="none" stroke="#ffd447" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="98" cy="30" r="8" fill="#ffd447"/>
+</svg>

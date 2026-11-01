@@ -1,0 +1,62 @@
+name: gachabot-preview
+
+services:
+  dashboard:
+    build: .
+    ports:
+      - "127.0.0.1:18791:8791"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8791
+      Dashboard__AllowAnonymousInDevelopment: "true"
+      Discord__Enabled: "false"
+      Workers__Enabled: "false"
+      BrowserAutomation__ChromiumSandbox: "false"
+      DatabaseStorage__ConnectionString: Host=postgres;Database=gachabot;Username=preview;Password=local-preview-only
+      S3Media__Endpoint: http://storage:8333
+      S3Media__Region: us-east-1
+      S3Media__AccessKey: preview-user
+      S3Media__SecretKey: local-preview-only
+      S3Media__Bucket: gachabot-media
+      S3Media__ForcePathStyle: "true"
+    volumes:
+      - dashboard-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: gachabot
+      POSTGRES_USER: preview
+      POSTGRES_PASSWORD: local-preview-only
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U preview -d gachabot"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  storage:
+    image: chrislusf/seaweedfs:4.51
+    command: mini -dir=/data
+    environment:
+      AWS_ACCESS_KEY_ID: preview-user
+      AWS_SECRET_ACCESS_KEY: local-preview-only
+      S3_BUCKET: gachabot-media
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9333/cluster/status"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+volumes:
+  dashboard-data:
+  postgres-data:
+  storage-data:
