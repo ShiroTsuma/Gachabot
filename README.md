@@ -27,9 +27,9 @@ Gachabot collects announcements and event calendars into one operational view, t
 
 The dashboard shows imported content, source health, upcoming events, pending publications and delivery history.
 
-![Gachabot dashboard in a fresh local preview instance](docs/images/dashboard.png)
+![Gachabot dashboard with live publication counts and source check time](docs/images/dashboard.png)
 
-*Actual local dashboard with an empty database. Source workers and Discord delivery are disabled in preview mode.*
+*Dashboard captured from a running self-hosted instance.*
 
 ## What it handles
 
@@ -43,11 +43,16 @@ The dashboard shows imported content, source health, upcoming events, pending pu
 | Media archive | Store artwork in an S3-compatible bucket and send event images as Discord attachments. |
 
 <details>
-<summary>Post editor</summary>
+<summary>Event calendar</summary>
 
-![Post editor with explicitly labeled example text](docs/images/post-editor.png)
+![Live event timeline with game artwork and start and end dates](docs/images/events.png)
 
-*Compose text, a source link and optional artwork. Leave the publication time blank to save a draft. The screenshot uses example text, not a live game announcement.*
+</details>
+
+<details>
+<summary>Imported content and Discord preview</summary>
+
+![Imported game content alongside its Discord message preview](docs/images/publication-preview.png)
 
 </details>
 
