@@ -1,5 +1,7 @@
 # Development
 
+Use the exact .NET SDK version pinned in `global.json`. Locked dependency restore includes SDK-provided ASP.NET assets, so a different SDK patch can require a different lockfile. Docker builds use the same pinned SDK.
+
 [Back to the README](../README.md)
 
 ## Run from source

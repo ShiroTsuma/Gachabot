@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="schmidley.png" width="112" alt="Schmidley, the Gachabot mascot">
+  <img src="docs/images/gachabot.svg" width="80" height="80" alt="Gachabot">
 </p>
 
 <h1 align="center">Gachabot</h1>
