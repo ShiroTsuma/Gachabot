@@ -5,9 +5,8 @@
 
 <section class="page-heading compact">
     <div>
-        <p class="eyebrow">INGESTION</p>
         <h1>Sources</h1>
-        <p class="lede">Baseline state, trust policy, and the last successful import.</p>
+        <p class="lede">Check source status, refresh content and review errors.</p>
     </div>
     <button class="button button-primary" @onclick="RunAllNowAsync" disabled="@(_runningSource is not null)">
         @(_runningSource == AllSourcesKey ? "Refreshing…" : "Refresh all")
@@ -56,7 +55,7 @@ else
                             disabled="@(_runningSource is not null)">
                         @(_runningSource == source.Key ? "Refreshing…" : "Refresh source")
                     </button>
-                    <a href="@ExtractedContentUrl(source.Key)">View extracted content →</a>
+                    <a href="@ExtractedContentUrl(source.Key)">View content</a>
                 </div>
             </article>
         }

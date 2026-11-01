@@ -27,6 +27,8 @@ jobs:
         run: dotnet test GachaBot.slnx --configuration Release --no-build --no-restore
       - name: Docker build
         run: docker build --tag gachabot:ci .
+      - name: Relative time display tests
+        run: node --test tests/ui/relative-time.test.mjs
       - name: Start isolated dashboard preview
         run: |
           docker compose -f compose.preview.yaml up --build -d

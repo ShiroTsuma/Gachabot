@@ -1,20 +1,19 @@
 @page "/"
 @inject IContentManagementStore ContentStore
-@inject IOptions<SourcePollingOptions> PollingOptions
+@inject ISourceOperations SourceOperations
 
 <PageTitle>Dashboard · Schmidley</PageTitle>
 
 <section class="page-heading">
     <div>
-        <p class="eyebrow">OVERVIEW</p>
-        <h1>Schmidley.</h1>
+        <h1>Dashboard</h1>
     </div>
-    <a class="button button-primary" href="/content/new">+ Schedule post</a>
+    <a class="button button-primary" href="/content/new">New post</a>
 </section>
 
 @if (_metrics is null)
 {
-    <p class="loading">Reading system state…</p>
+    <p class="loading">Loading dashboard…</p>
 }
 else
 {
@@ -27,34 +26,36 @@ else
                 <a class="metric-card signal" href="/content?status=Active" aria-label="View active posts">
                     <span>Active</span>
                     <strong>@_metrics.Active</strong>
-                    <small>on the radar</small>
+                    <small>Active posts</small>
                 </a>
                 <a class="metric-card" href="/events" aria-label="View scheduled events">
                     <span>Scheduled</span>
                     <strong>@_metrics.Scheduled</strong>
-                    <small>Discord queue · events</small>
+                    <small>Upcoming deliveries</small>
                 </a>
                 <a class="metric-card warning" href="/content?status=Draft" aria-label="View posts awaiting review">
                     <span>Review</span>
                     <strong>@_metrics.AwaitingReview</strong>
-                    <small>community sources</small>
+                    <small>Awaiting review</small>
                 </a>
                 <a class="metric-card" href="/archive" aria-label="View archive">
                     <span>Archive</span>
                     <strong>@_metrics.Archived</strong>
-                    <small>retained posts</small>
+                    <small>Archived posts</small>
                 </a>
             </section>
 
-            <section class="status-board">
-                <div>
-                    <p class="eyebrow">LAST SIGNAL</p>
-                    <h2>@FormatInstant(_metrics.LastSuccessfulImportUtc)</h2>
-                </div>
-                <div class="status-line">
-                    <span class="live-dot" aria-hidden="true"></span>
-                    <span>Polling every @PollingOptions.Value.IntervalMinutes min · transactional outbox delivery</span>
-                </div>
+            <section class="last-checked" aria-label="Source checks">
+                <span>Last checked</span>
+                @if (_lastCheckedUtc is { } checkedAt)
+                {
+                    <time datetime="@checkedAt.ToString("O")" data-relative-time>@checkedAt.ToUniversalTime().ToString("dd MMM yyyy, HH:mm 'UTC'")</time>
+                }
+                else
+                {
+                    <span>Not checked yet</span>
+                }
+                <a href="/sources">Sources</a>
             </section>
         </div>
     </section>
@@ -62,13 +63,13 @@ else
 
 @code {
     private DashboardMetrics? _metrics;
+    private DateTimeOffset? _lastCheckedUtc;
 
     protected override async Task OnInitializedAsync()
     {
         _metrics = await ContentStore.GetMetricsAsync(CancellationToken.None);
+        var statuses = await SourceOperations.GetStatusesAsync(CancellationToken.None);
+        _lastCheckedUtc = statuses.Select(source => source.LastAttemptUtc).Max();
     }
 
-    private static string FormatInstant(DateTimeOffset? value) => value.HasValue
-        ? value.Value.ToLocalTime().ToString("dd MMM yyyy · HH:mm", System.Globalization.CultureInfo.GetCultureInfo("en-US"))
-        : "Awaiting first import";
 }

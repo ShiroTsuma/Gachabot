@@ -5,20 +5,18 @@
 
 <section class="page-heading compact">
     <div>
-        <p class="eyebrow">RETAINED POSTS</p>
         <h1>Archive</h1>
-        <p class="lede">Expired and manually closed posts remain available for audit.</p>
+        <p class="lede">Browse expired, archived and replaced posts.</p>
     </div>
 </section>
 
 @if (_items is null)
 {
-    <p class="loading">Opening archive…</p>
+    <p class="loading">Loading archive…</p>
 }
 else if (_items.Count == 0)
 {
     <section class="empty-state">
-        <p class="eyebrow">NO RECORDS</p>
         <h2>The archive is still empty.</h2>
     </section>
 }

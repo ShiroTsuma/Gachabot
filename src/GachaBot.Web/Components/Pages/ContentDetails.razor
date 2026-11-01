@@ -10,7 +10,6 @@
 @if (_details is null)
 {
     <section class="empty-state">
-        <p class="eyebrow">ENTRY NOT FOUND</p>
         <h1>This content was not found.</h1>
         <a href="/content">Return to index →</a>
     </section>
@@ -64,7 +63,6 @@ else
     {
         <section class="targeted-publication" aria-labelledby="targeted-publication-heading">
             <div>
-                <p class="eyebrow">TARGETED PUBLICATION</p>
                 <h2 id="targeted-publication-heading">Send to one guild only</h2>
                 <p>Only active guilds tracking @GameLabel(_details.Game) can be selected.</p>
             </div>

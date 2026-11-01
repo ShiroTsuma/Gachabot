@@ -5,10 +5,9 @@
 <div class="app-shell">
     <aside class="signal-rail">
         <div class="brand-lockup">
-            <span class="brand-mark" aria-hidden="true">S</span>
+            <img class="brand-icon" src="images/suisui.webp" width="40" height="40" alt="Suisui" />
             <div>
                 <strong>Schmidley</strong>
-                <span>Discord event relay</span>
             </div>
         </div>
 
@@ -23,19 +22,13 @@
             <NavLink href="/guide">Guide</NavLink>
         </nav>
 
-        <div class="rail-footer">
-            <span class="live-dot" aria-hidden="true"></span>
-            <span>Monitor active</span>
-        </div>
+        <form class="header-account" action="/auth/logout" method="post">
+            <AntiforgeryToken />
+            <button class="text-button" type="submit">Sign out</button>
+        </form>
     </aside>
 
     <main>
-        <header class="topbar">
-            <form action="/auth/logout" method="post">
-                <AntiforgeryToken />
-                <button class="text-button" type="submit">Sign out</button>
-            </form>
-        </header>
         <div id="main-content" class="page-frame" tabindex="-1">
             @Body
         </div>
