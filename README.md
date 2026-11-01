@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/gachabot.svg" width="80" height="80" alt="Gachabot">
+  <img src="src/GachaBot.Web/wwwroot/images/suisui.webp" width="80" height="80" alt="Suisui">
 </p>
 
 <h1 align="center">Gachabot</h1>
@@ -144,3 +144,5 @@ Report bugs through [GitHub Issues](https://github.com/ShiroTsuma/Gachabot/issue
 Gachabot is [source-available](LICENSE). Individuals may run an unmodified instance for personal, non-commercial use. Redistribution, commercial use and distribution of modified versions require written permission from ShiroTsuma.
 
 This is an independent project, not affiliated with Discord, Kuro Games, Hotta Studio, Game8 or WuWa Tracker. Source content and game artwork belong to their respective owners. Review source terms before enabling an integration.
+
+The Suisui icon is game artwork by Kuro Games; see [asset attribution](docs/ASSETS.md).

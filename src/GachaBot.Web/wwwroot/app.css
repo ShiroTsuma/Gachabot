@@ -1083,7 +1083,8 @@ h1, .page-heading.compact h1 { max-width: none; font-size: 32px; font-weight: 65
     .header-account { margin: 0; }
     .brand-lockup { margin: 0; }
     .home-dashboard-grid { grid-template-columns: 1fr; }
-    .home-schmidley-panel { display: none; }
+    .home-schmidley-panel { display: block; min-height: 180px; }
+    .home-schmidley-panel img { height: 220px; min-height: 180px; max-height: 220px; object-fit: contain; object-position: center; }
     .home-dashboard-content .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .home-dashboard-content .metric-card { min-height: 130px; padding: 16px; }
     .page-frame { width: auto; padding-top: 24px; }

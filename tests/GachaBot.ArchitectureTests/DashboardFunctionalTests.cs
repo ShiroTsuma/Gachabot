@@ -28,7 +28,7 @@ public sealed class DashboardFunctionalTests : IClassFixture<DashboardApplicatio
     }
 
     [Theory]
-    [InlineData("/", "Schmidley.")]
+    [InlineData("/", "Last checked")]
     [InlineData("/events", "Events")]
     [InlineData("/content/new", "New post")]
     [InlineData("/sources", "Sources")]
@@ -68,7 +68,7 @@ public sealed class DashboardFunctionalTests : IClassFixture<DashboardApplicatio
         response.EnsureSuccessStatusCode();
         Assert.Contains("official-wuthering-waves", decodedHtml, StringComparison.Ordinal);
         Assert.Contains("Refresh source", decodedHtml, StringComparison.Ordinal);
-        Assert.Contains("View extracted content", decodedHtml, StringComparison.Ordinal);
+        Assert.Contains("View content", decodedHtml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public sealed class DashboardFunctionalTests : IClassFixture<DashboardApplicatio
         response.EnsureSuccessStatusCode();
         Assert.Contains("Through ", html, StringComparison.Ordinal);
         Assert.Contains("Combat Event", html, StringComparison.Ordinal);
-        Assert.Contains("TIMELINE", html, StringComparison.Ordinal);
+        Assert.Contains("<h1>Events</h1>", html, StringComparison.Ordinal);
         Assert.Contains("calendar-event-rails", html, StringComparison.Ordinal);
         Assert.Contains("calendar-event-title", html, StringComparison.Ordinal);
         Assert.Contains("calendar-event-art", html, StringComparison.Ordinal);
