@@ -38,6 +38,7 @@ public sealed class SafeRemoteMediaArchiveTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_root, result.RelativePath)));
         Assert.StartsWith("media/", result.RelativePath, StringComparison.Ordinal);
         Assert.Equal(result.RelativePath, result.ObjectKey);
+        Assert.Empty(Directory.EnumerateFiles(Path.Combine(_root, "staging")));
         Assert.Contains(result.State, new[]
         {
             MediaArchiveState.Compressed,
