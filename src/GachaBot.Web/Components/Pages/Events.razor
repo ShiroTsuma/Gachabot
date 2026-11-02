@@ -135,28 +135,16 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        var events = (await ContentStore.ListAsync(null, null, CancellationToken.None))
-            .Where(item => item.Kind == ContentKind.Event)
+        // The calendar starts on this week's Monday, so a week back covers every event it can show.
+        _events = (await ContentStore.ListEventsEndingAfterAsync(Clock.GetUtcNow().AddDays(-7), CancellationToken.None))
+            .Select(details => new CalendarEvent(
+                details.Id,
+                details.Game,
+                details.Title,
+                details.SourcePublishedAtUtc!.Value,
+                details.ExpiresAtUtc!.Value,
+                EventArtwork(details.Document) is { } artwork ? ArchivedMediaUrl(details.SourceKey, details.Id, artwork) : null))
             .ToArray();
-        var calendarEvents = new List<CalendarEvent>(events.Length);
-        foreach (var item in events)
-        {
-            var details = await ContentStore.GetAsync(item.Id, CancellationToken.None);
-            if (details?.ExpiresAtUtc is null || details.SourcePublishedAtUtc is null)
-            {
-                continue;
-            }
-
-            calendarEvents.Add(new CalendarEvent(
-                item.Id,
-                item.Game,
-                item.Title,
-                details.SourcePublishedAtUtc.Value,
-                details.ExpiresAtUtc.Value,
-                EventArtwork(details.Document) is { } artwork ? ArchivedMediaUrl(item.SourceKey, item.Id, artwork) : null));
-        }
-
-        _events = calendarEvents;
     }
 
     private static IReadOnlyDictionary<Guid, int> AllocateEventLanes(IEnumerable<CalendarEvent> events)

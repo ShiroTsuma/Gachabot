@@ -65,6 +65,10 @@ public interface IContentManagementStore
 
     Task<ContentDetails?> GetAsync(Guid contentId, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ContentDetails>> ListEventsEndingAfterAsync(
+        DateTimeOffset endsAfterUtc,
+        CancellationToken cancellationToken);
+
     Task<Guid> CreateManualAsync(
         CreateManualContentCommand command,
         CancellationToken cancellationToken);

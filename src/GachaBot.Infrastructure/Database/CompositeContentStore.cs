@@ -173,6 +173,21 @@ public sealed class CompositeContentStore(
         return null;
     }
 
+    public async Task<IReadOnlyList<ContentDetails>> ListEventsEndingAfterAsync(
+        DateTimeOffset endsAfterUtc,
+        CancellationToken cancellationToken)
+    {
+        var events = new List<ContentDetails>();
+        foreach (var key in databaseFactory.DatabaseKeys)
+        {
+            events.AddRange(await WithStoreAsync(
+                key,
+                store => store.ListEventsEndingAfterAsync(endsAfterUtc, cancellationToken)).ConfigureAwait(false));
+        }
+
+        return events;
+    }
+
     public async Task<Guid> CreateManualAsync(
         CreateManualContentCommand command,
         CancellationToken cancellationToken) => await WithStoreAsync(

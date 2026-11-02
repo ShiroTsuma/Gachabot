@@ -150,15 +150,15 @@ else
             .ToArray();
 
         var now = Clock.GetUtcNow();
-        var events = new List<DashboardEvent>();
-        foreach (var item in items.Where(item => item.Kind == ContentKind.Event && item.Status != ContentStatus.Archived))
-        {
-            var details = await ContentStore.GetAsync(item.Id, CancellationToken.None);
-            if (details?.ExpiresAtUtc is { } end && details.SourcePublishedAtUtc is { } start && end > now)
-            {
-                events.Add(new DashboardEvent(item.Id, item.Game, item.Title, start, end));
-            }
-        }
+        var events = (await ContentStore.ListEventsEndingAfterAsync(now, CancellationToken.None))
+            .Where(details => details.Status != ContentStatus.Archived)
+            .Select(details => new DashboardEvent(
+                details.Id,
+                details.Game,
+                details.Title,
+                details.SourcePublishedAtUtc!.Value,
+                details.ExpiresAtUtc!.Value))
+            .ToArray();
 
         _endingSoon = events.Where(entry => entry.StartAtUtc <= now).OrderBy(entry => entry.EndAtUtc).Take(6).ToArray();
         _startingSoon = events.Where(entry => entry.StartAtUtc > now).OrderBy(entry => entry.StartAtUtc).Take(6).ToArray();

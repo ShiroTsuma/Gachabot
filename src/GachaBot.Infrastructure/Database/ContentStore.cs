@@ -678,26 +678,42 @@ public sealed class ContentStore(
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == contentId, cancellationToken)
             .ConfigureAwait(false);
-        return content is null
-            ? null
-            : new ContentDetails(
-                content.Id,
-                content.SourceKey,
-                content.Game,
-                content.Kind,
-                content.Title,
-                content.Status,
-                content.ArchiveReason,
-                content.AwaitingReview,
-                ContentDocumentJson.Deserialize(content.DocumentJson),
-                content.SourceUrl is null ? null : new Uri(content.SourceUrl),
-                content.CreatedAtUtc,
-                content.UpdatedAtUtc,
-                content.SourcePublishedAtUtc,
-                content.ScheduledAtUtc,
-                content.PublishedAtUtc,
-                content.ExpiresAtUtc);
+        return content is null ? null : ToDetails(content);
     }
+
+    public async Task<IReadOnlyList<ContentDetails>> ListEventsEndingAfterAsync(
+        DateTimeOffset endsAfterUtc,
+        CancellationToken cancellationToken) =>
+        (await dbContext.ContentItems
+            .AsNoTracking()
+            .Where(item =>
+                item.Kind == ContentKind.Event &&
+                item.SourcePublishedAtUtc != null &&
+                item.ExpiresAtUtc != null &&
+                item.ExpiresAtUtc > endsAfterUtc)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false))
+        .Select(ToDetails)
+        .ToArray();
+
+    private static ContentDetails ToDetails(ContentRecord content) =>
+        new ContentDetails(
+            content.Id,
+            content.SourceKey,
+            content.Game,
+            content.Kind,
+            content.Title,
+            content.Status,
+            content.ArchiveReason,
+            content.AwaitingReview,
+            ContentDocumentJson.Deserialize(content.DocumentJson),
+            content.SourceUrl is null ? null : new Uri(content.SourceUrl),
+            content.CreatedAtUtc,
+            content.UpdatedAtUtc,
+            content.SourcePublishedAtUtc,
+            content.ScheduledAtUtc,
+            content.PublishedAtUtc,
+            content.ExpiresAtUtc);
 
     public async Task<Guid> CreateManualAsync(
         CreateManualContentCommand command,

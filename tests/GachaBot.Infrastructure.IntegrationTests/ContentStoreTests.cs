@@ -302,6 +302,30 @@ public sealed class ContentStoreTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ListEventsEndingAfterAsync_ReturnsOnlyDatedEventsThatHaveNotEnded()
+    {
+        var now = new DateTimeOffset(2026, 11, 2, 12, 0, 0, TimeSpan.Zero);
+        Task Upsert(string id, ContentKind kind, DateTimeOffset? endsAt) => _store.UpsertAsync(
+            Snapshot(id) with
+            {
+                ExternalId = id,
+                Kind = kind,
+                Title = id,
+                PublishedAtUtc = now.AddDays(-10),
+                ExpiresAtUtc = endsAt,
+            },
+            PublicationDisposition.SuppressBaseline,
+            TestContext.Current.CancellationToken);
+        await Upsert("running", ContentKind.Event, now.AddDays(3));
+        await Upsert("ended", ContentKind.Event, now.AddDays(-1));
+        await Upsert("news", ContentKind.News, now.AddDays(3));
+
+        var events = await _store.ListEventsEndingAfterAsync(now, TestContext.Current.CancellationToken);
+
+        Assert.Equal("running", Assert.Single(events).Title);
+    }
+
+    [Fact]
     public async Task ObsoleteDiscordPublications_AreListedAndMarkedDeleted()
     {
         var now = new DateTimeOffset(2026, 8, 22, 16, 0, 0, TimeSpan.Zero);

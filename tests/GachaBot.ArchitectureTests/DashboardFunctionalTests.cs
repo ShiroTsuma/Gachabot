@@ -28,7 +28,7 @@ public sealed class DashboardFunctionalTests : IClassFixture<DashboardApplicatio
     }
 
     [Theory]
-    [InlineData("/", "Last checked")]
+    [InlineData("/", "Last source check")]
     [InlineData("/events", "Events")]
     [InlineData("/content/new", "New post")]
     [InlineData("/sources", "Sources")]
@@ -67,8 +67,8 @@ public sealed class DashboardFunctionalTests : IClassFixture<DashboardApplicatio
 
         response.EnsureSuccessStatusCode();
         Assert.Contains("official-wuthering-waves", decodedHtml, StringComparison.Ordinal);
-        Assert.Contains("Refresh source", decodedHtml, StringComparison.Ordinal);
-        Assert.Contains("View content", decodedHtml, StringComparison.Ordinal);
+        Assert.Matches(@">\s*Refresh\s*<", decodedHtml);
+        Assert.Contains("/content?source=official-wuthering-waves", decodedHtml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -101,10 +101,10 @@ public sealed class DashboardFunctionalTests : IClassFixture<DashboardApplicatio
         var decodedHtml = System.Net.WebUtility.HtmlDecode(html);
 
         response.EnsureSuccessStatusCode();
-        Assert.Contains("EXTRACTED SOURCE DATA", html, StringComparison.Ordinal);
-        Assert.Contains("DISCORD PREVIEW", html, StringComparison.Ordinal);
-        Assert.Contains("Appearance simulation", html, StringComparison.Ordinal);
-        Assert.Contains("Exact payload", html, StringComparison.Ordinal);
+        Assert.Contains("Extracted content", html, StringComparison.Ordinal);
+        Assert.Contains("Discord preview", html, StringComparison.Ordinal);
+        Assert.Contains("discord-channel", html, StringComparison.Ordinal);
+        Assert.Contains("Raw payload", html, StringComparison.Ordinal);
         Assert.Contains("Event heading", html, StringComparison.Ordinal);
         Assert.Contains("https://cdn.example.com/event.webp", html, StringComparison.Ordinal);
         Assert.Contains($"/media/", html, StringComparison.Ordinal);
@@ -178,13 +178,13 @@ public sealed class DashboardFunctionalTests : IClassFixture<DashboardApplicatio
         var html = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         response.EnsureSuccessStatusCode();
-        Assert.Contains("Through ", html, StringComparison.Ordinal);
+        Assert.Contains("event-calendar", html, StringComparison.Ordinal);
         Assert.Contains("Combat Event", html, StringComparison.Ordinal);
         Assert.Contains("<h1>Events</h1>", html, StringComparison.Ordinal);
         Assert.Contains("calendar-event-rails", html, StringComparison.Ordinal);
         Assert.Contains("calendar-event-title", html, StringComparison.Ordinal);
-        Assert.Contains("calendar-event-art", html, StringComparison.Ordinal);
-        Assert.Contains("palette-", html, StringComparison.Ordinal);
+        Assert.Contains("--art: url(", html, StringComparison.Ordinal);
+        Assert.Contains("game-WutheringWaves", html, StringComparison.Ordinal);
         Assert.DoesNotContain("calendar-grid", html, StringComparison.Ordinal);
     }
 
