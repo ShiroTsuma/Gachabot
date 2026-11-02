@@ -302,6 +302,40 @@ public sealed class ContentStoreTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpsertAsync_AdoptsSameEventEditionStoredUnderItsPreviousId()
+    {
+        var now = new DateTimeOffset(2026, 11, 2, 12, 0, 0, TimeSpan.Zero);
+        var destinations = new FixedDestinationStore(
+        [
+            new GuildDestination(101, 201, 301, true, GuildDestinationGames.All, now),
+        ]);
+        var store = new ContentStore(_db, new FixedTimeProvider(now), destinations);
+        var startsAt = now.AddDays(-3);
+        var legacy = Snapshot("Gold Clash") with
+        {
+            SourceKey = "game8-nte-events",
+            ExternalId = "games:archives:611834",
+            Kind = ContentKind.Event,
+            Title = "Gold Clash",
+            PublishedAtUtc = startsAt,
+            ExpiresAtUtc = startsAt.AddDays(14),
+            PublishAtUtc = startsAt,
+        };
+        await store.UpsertAsync(legacy, PublicationDisposition.ScheduleUpcoming, TestContext.Current.CancellationToken);
+        var publicationsBefore = await _db.Publications.CountAsync(TestContext.Current.CancellationToken);
+
+        var outcome = await store.UpsertAsync(
+            legacy with { ExternalId = $"games:archives:611834:{startsAt:yyyyMMdd}" },
+            PublicationDisposition.ScheduleUpcoming,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(ContentUpsertOutcome.Unchanged, outcome);
+        var content = await _db.ContentItems.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal($"games:archives:611834:{startsAt:yyyyMMdd}", content.ExternalId);
+        Assert.Equal(publicationsBefore, await _db.Publications.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task ObsoleteDiscordPublications_AreListedAndMarkedDeleted()
     {
         var now = new DateTimeOffset(2026, 8, 22, 16, 0, 0, TimeSpan.Zero);

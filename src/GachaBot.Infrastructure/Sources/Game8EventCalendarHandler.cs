@@ -146,8 +146,9 @@ public sealed partial class Game8EventCalendarHandler(IRenderedPageClient pageCl
             }
         }
 
+        // Recurring events reuse one Game8 page, so the start date keeps each edition separate.
         var externalId = detailsUrl != definition.Url
-            ? detailsUrl.AbsolutePath.Trim('/').Replace('/', ':')
+            ? $"{detailsUrl.AbsolutePath.Trim('/').Replace('/', ':')}:{startAtUtc:yyyyMMdd}"
             : $"{Slug(title)}:{startAtUtc:yyyyMMdd}";
         candidate = new EventCandidate(
             externalId,

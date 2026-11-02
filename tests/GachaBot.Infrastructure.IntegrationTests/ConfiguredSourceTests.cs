@@ -77,6 +77,49 @@ public sealed class ConfiguredSourceTests
     }
 
     [Fact]
+    public async Task Game8EventCalendar_KeepsEditionsOfARecurringEventSeparate()
+    {
+        const string html = """
+            <main>
+              <h3>List of Current Events</h3>
+              <table><tbody><tr>
+                <td><a href="/games/Neverness-to-Everness/archives/611834">Gold Clash</a></td>
+                <td>October 26 - November 8, 2026</td>
+              </tr></tbody></table>
+              <h3>List of Upcoming Events</h3>
+              <table><tbody><tr>
+                <td><a href="/games/Neverness-to-Everness/archives/611834">Gold Clash</a></td>
+                <td>November 23 - December 7, 2026</td>
+              </tr></tbody></table>
+            </main>
+            """;
+        var definition = new SourceDefinition
+        {
+            Key = "game8-neverness-to-everness-events",
+            Game = GameKey.NevernessToEverness,
+            Trust = SourceTrust.Trusted,
+            Handler = Game8EventCalendarHandler.HandlerKey,
+            Url = new Uri("https://game8.co/games/Neverness-to-Everness/archives/592073"),
+            EventCalendar = new EventCalendarRules
+            {
+                ReadySelector = "h3",
+                IncludedSectionHeadings = ["List of Current Events", "List of Upcoming Events"],
+                DateUtcOffsetHours = 1,
+                DayStartHour = 5,
+            },
+        };
+        var source = ConfiguredSource(
+            definition,
+            new Game8EventCalendarHandler(new StubRenderedPageClient(html)));
+
+        var items = await ReadAllAsync(source);
+
+        Assert.Equal(
+            ["games:Neverness-to-Everness:archives:611834:20261026", "games:Neverness-to-Everness:archives:611834:20261123"],
+            items.Select(item => item.ExternalId).ToArray());
+    }
+
+    [Fact]
     public async Task WutheringWavesTimeline_ExtractsBannersAndActivitiesWithOfficialLinks()
     {
         const string payload = """

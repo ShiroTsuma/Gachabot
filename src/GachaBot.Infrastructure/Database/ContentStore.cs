@@ -96,6 +96,32 @@ public sealed class ContentStore(
             }
         }
 
+        var previousEventId = snapshot.ExternalId.LastIndexOf(':') is > 0 and var separator
+            ? snapshot.ExternalId[..separator]
+            : null;
+        if (existing is null && previousEventId is not null && snapshot.Kind == ContentKind.Event &&
+            snapshot.PublishedAtUtc is not null && snapshot.ExpiresAtUtc is not null)
+        {
+            // Event IDs gained the edition's start date; adopt the same edition stored under its
+            // previous ID so it keeps its sent posts and reminders instead of being announced again.
+            existing = await dbContext.ContentItems
+                .Where(item =>
+                    item.SourceKey == snapshot.SourceKey &&
+                    item.Kind == ContentKind.Event &&
+                    item.Status != ContentStatus.Archived &&
+                    item.Title == snapshot.Title &&
+                    item.SourcePublishedAtUtc == snapshot.PublishedAtUtc &&
+                    item.ExpiresAtUtc == snapshot.ExpiresAtUtc &&
+                    item.ExternalId == previousEventId)
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (existing is not null)
+            {
+                existing.Identity = snapshot.Identity;
+                existing.ExternalId = snapshot.ExternalId;
+            }
+        }
+
         var now = timeProvider.GetUtcNow();
         var isExplicitlyExpired = snapshot.ExpiresAtUtc.HasValue && snapshot.ExpiresAtUtc.Value < now;
         var isRetentionExpired = IsRetentionExpired(snapshot, now);
