@@ -1061,15 +1061,16 @@ public sealed class ContentStore(
         var added = false;
         foreach (var destination in destinations.Where(destination => destination.SubscribesTo(content.Game, content.Kind)))
         {
-            var exists = await dbContext.Publications.AnyAsync(
-                publication =>
+            var exists = (await dbContext.Publications
+                .Where(publication =>
                     publication.ContentId == content.Id &&
                     publication.DestinationGuildId == checked((long)destination.GuildId) &&
                     publication.DestinationChannelId == checked((long)destination.ChannelId) &&
                     (publication.State == PublicationState.Pending ||
                      publication.State == PublicationState.Processing ||
-                     publication.State == PublicationState.Published),
-                cancellationToken).ConfigureAwait(false);
+                     publication.State == PublicationState.Published))
+                .ToListAsync(cancellationToken).ConfigureAwait(false))
+                .Any(IsLive);
             if (exists)
             {
                 continue;
@@ -1081,6 +1082,11 @@ public sealed class ContentStore(
 
         return added;
     }
+
+    // Rows cancelled earlier in this unit of work are still Pending in the database; the tracked
+    // entity returned by the query carries the unsaved state, so re-check it here.
+    private static bool IsLive(PublicationRecord publication) =>
+        publication.State is PublicationState.Pending or PublicationState.Processing or PublicationState.Published;
 
     private static bool IsDatedEvent(ContentRecord content) =>
         content.Kind == ContentKind.Event &&
@@ -1217,16 +1223,17 @@ public sealed class ContentStore(
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        var exists = await dbContext.Publications.AnyAsync(
-            publication =>
+        var exists = (await dbContext.Publications
+            .Where(publication =>
                 publication.ContentId == content.Id &&
                 publication.DestinationGuildId == checked((long)destination.GuildId) &&
                 publication.DestinationChannelId == checked((long)destination.ChannelId) &&
                 publication.Purpose == purpose &&
                 (publication.State == PublicationState.Pending ||
                  publication.State == PublicationState.Processing ||
-                 publication.State == PublicationState.Published),
-            cancellationToken).ConfigureAwait(false);
+                 publication.State == PublicationState.Published))
+            .ToListAsync(cancellationToken).ConfigureAwait(false))
+            .Any(IsLive);
         if (exists)
         {
             return false;
