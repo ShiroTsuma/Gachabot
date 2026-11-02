@@ -6,7 +6,7 @@
 <section class="page-heading compact">
     <div>
         <h1>Archive</h1>
-        <p class="lede">Browse expired, archived and replaced posts.</p>
+        <p class="lede">Expired, archived and replaced posts.</p>
     </div>
 </section>
 
@@ -26,13 +26,13 @@ else
         @foreach (var item in _items)
         {
             <article>
-                <span class="game-code">@(item.Game == GameKey.WutheringWaves ? "WUWA" : "NTE")</span>
+                <span class="game-code game-@item.Game">@(item.Game == GameKey.WutheringWaves ? "WuWa" : "NTE")</span>
                 <div>
                     <h2><a class="content-title-link" href="@($"/content/{item.Id}")">@item.Title</a></h2>
                     <p>@item.Kind · @item.UpdatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
                 </div>
                 <div class="archive-actions">
-                    <a href="@($"/content/{item.Id}")">View preview →</a>
+                    <a href="@($"/content/{item.Id}")">Preview</a>
                     @if (item.SourceUrl is not null)
                     {
                         <a href="@item.SourceUrl" target="_blank" rel="noopener noreferrer">Source ↗</a>

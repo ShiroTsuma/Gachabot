@@ -1,12 +1,24 @@
 @page "/"
 @inject IContentManagementStore ContentStore
 @inject ISourceOperations SourceOperations
+@inject TimeProvider Clock
 
 <PageTitle>Dashboard · Schmidley</PageTitle>
 
 <section class="page-heading">
     <div>
         <h1>Dashboard</h1>
+        <p class="lede">
+            Last source check
+            @if (_lastCheckedUtc is { } checkedAt)
+            {
+                <time datetime="@checkedAt.ToString("O")" data-relative-time>@checkedAt.ToUniversalTime().ToString("dd MMM yyyy, HH:mm 'UTC'")</time>
+            }
+            else
+            {
+                <span>never</span>
+            }
+        </p>
     </div>
     <a class="button button-primary" href="/content/new">New post</a>
 </section>
@@ -17,59 +29,148 @@
 }
 else
 {
-    <section class="home-dashboard-grid">
-        <aside class="home-schmidley-panel">
-            <img src="images/schmidley.png" alt="Schmidley" />
-        </aside>
-        <div class="home-dashboard-content">
-            <section class="metric-grid" aria-label="Content state">
-                <a class="metric-card signal" href="/content?status=Active" aria-label="View active posts">
-                    <span>Active</span>
-                    <strong>@_metrics.Active</strong>
-                    <small>Active posts</small>
-                </a>
-                <a class="metric-card" href="/events" aria-label="View scheduled events">
-                    <span>Scheduled</span>
-                    <strong>@_metrics.Scheduled</strong>
-                    <small>Upcoming deliveries</small>
-                </a>
-                <a class="metric-card warning" href="/content?status=Draft" aria-label="View posts awaiting review">
-                    <span>Review</span>
-                    <strong>@_metrics.AwaitingReview</strong>
-                    <small>Awaiting review</small>
-                </a>
-                <a class="metric-card" href="/archive" aria-label="View archive">
-                    <span>Archive</span>
-                    <strong>@_metrics.Archived</strong>
-                    <small>Archived posts</small>
-                </a>
-            </section>
-
-            <section class="last-checked" aria-label="Source checks">
-                <span>Last checked</span>
-                @if (_lastCheckedUtc is { } checkedAt)
-                {
-                    <time datetime="@checkedAt.ToString("O")" data-relative-time>@checkedAt.ToUniversalTime().ToString("dd MMM yyyy, HH:mm 'UTC'")</time>
-                }
-                else
-                {
-                    <span>Not checked yet</span>
-                }
-                <a href="/sources">Sources</a>
-            </section>
-        </div>
+  <div class="home-layout">
+    <aside class="mascot">
+        <img src="images/schmidley.png" alt="Schmidley" />
+    </aside>
+    <div>
+    <section class="stat-strip" aria-label="Content state">
+        <a href="/content?status=Active"><strong>@_metrics.Active</strong><span>Active</span></a>
+        <a href="/content?status=Scheduled"><strong>@_metrics.Scheduled</strong><span>Scheduled</span></a>
+        <a class="@(_metrics.AwaitingReview > 0 ? "attention" : null)" href="/content?status=Draft"><strong>@_metrics.AwaitingReview</strong><span>Awaiting review</span></a>
+        <a href="/archive"><strong>@_metrics.Archived</strong><span>Archived</span></a>
     </section>
+
+    <div class="dashboard-grid">
+        <section class="panel">
+            <header class="panel-head">
+                <h2>Ending soon</h2>
+                <a href="/events">All events</a>
+            </header>
+            @if (_endingSoon.Count == 0)
+            {
+                <p class="panel-empty">No active events.</p>
+            }
+            else
+            {
+                <ul class="item-list">
+                    @foreach (var entry in _endingSoon)
+                    {
+                        <li>
+                            <span class="game-code game-@entry.Game">@GameCode(entry.Game)</span>
+                            <a href="/content/@entry.Id">@entry.Title</a>
+                            <span class="item-meta">@Remaining(entry.EndAtUtc)</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="panel">
+            <header class="panel-head">
+                <h2>Starting soon</h2>
+                <a href="/events">All events</a>
+            </header>
+            @if (_startingSoon.Count == 0)
+            {
+                <p class="panel-empty">Nothing announced yet.</p>
+            }
+            else
+            {
+                <ul class="item-list">
+                    @foreach (var entry in _startingSoon)
+                    {
+                        <li>
+                            <span class="game-code game-@entry.Game">@GameCode(entry.Game)</span>
+                            <a href="/content/@entry.Id">@entry.Title</a>
+                            <span class="item-meta">@entry.StartAtUtc.ToLocalTime().ToString("dd MMM, HH:mm", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="panel">
+            <header class="panel-head">
+                <h2>Recently updated</h2>
+                <a href="/content">All content</a>
+            </header>
+            <ul class="item-list">
+                @foreach (var item in _recent)
+                {
+                    <li>
+                        <span class="game-code game-@item.Game">@GameCode(item.Game)</span>
+                        <a href="/content/@item.Id">@item.Title</a>
+                        <span class="status-chip status-@item.Status.ToString().ToLowerInvariant()">@item.Status</span>
+                    </li>
+                }
+            </ul>
+        </section>
+
+        <section class="panel">
+            <header class="panel-head">
+                <h2>Sources</h2>
+                <a href="/sources">Manage</a>
+            </header>
+            <ul class="item-list">
+                @foreach (var source in _sources)
+                {
+                    <li>
+                        <span class="health-dot @(string.IsNullOrWhiteSpace(source.LastFailureMessage) ? "ok" : "failed")" aria-hidden="true"></span>
+                        <span>@Sources.SourceLabel(source.Key)</span>
+                        <span class="item-meta">@(string.IsNullOrWhiteSpace(source.LastFailureMessage) ? "OK" : "Last attempt failed")</span>
+                    </li>
+                }
+            </ul>
+        </section>
+    </div>
+    </div>
+  </div>
 }
 
 @code {
     private DashboardMetrics? _metrics;
     private DateTimeOffset? _lastCheckedUtc;
+    private IReadOnlyList<SourceStatus> _sources = [];
+    private IReadOnlyList<ContentListItem> _recent = [];
+    private IReadOnlyList<DashboardEvent> _endingSoon = [];
+    private IReadOnlyList<DashboardEvent> _startingSoon = [];
 
     protected override async Task OnInitializedAsync()
     {
         _metrics = await ContentStore.GetMetricsAsync(CancellationToken.None);
-        var statuses = await SourceOperations.GetStatusesAsync(CancellationToken.None);
-        _lastCheckedUtc = statuses.Select(source => source.LastAttemptUtc).Max();
+        _sources = await SourceOperations.GetStatusesAsync(CancellationToken.None);
+        _lastCheckedUtc = _sources.Select(source => source.LastAttemptUtc).Max();
+
+        var items = await ContentStore.ListAsync(null, null, CancellationToken.None);
+        _recent = items
+            .Where(item => item.Kind != ContentKind.Event && item.Status != ContentStatus.Archived)
+            .OrderByDescending(item => item.UpdatedAtUtc)
+            .Take(6)
+            .ToArray();
+
+        var now = Clock.GetUtcNow();
+        var events = new List<DashboardEvent>();
+        foreach (var item in items.Where(item => item.Kind == ContentKind.Event && item.Status != ContentStatus.Archived))
+        {
+            var details = await ContentStore.GetAsync(item.Id, CancellationToken.None);
+            if (details?.ExpiresAtUtc is { } end && details.SourcePublishedAtUtc is { } start && end > now)
+            {
+                events.Add(new DashboardEvent(item.Id, item.Game, item.Title, start, end));
+            }
+        }
+
+        _endingSoon = events.Where(entry => entry.StartAtUtc <= now).OrderBy(entry => entry.EndAtUtc).Take(6).ToArray();
+        _startingSoon = events.Where(entry => entry.StartAtUtc > now).OrderBy(entry => entry.StartAtUtc).Take(6).ToArray();
     }
 
+    private string Remaining(DateTimeOffset endAtUtc)
+    {
+        var left = endAtUtc - Clock.GetUtcNow();
+        return left.TotalHours < 24 ? $"{Math.Max(1, (int)left.TotalHours)} h left" : $"{(int)left.TotalDays} d left";
+    }
+
+    private static string GameCode(GameKey game) => game == GameKey.WutheringWaves ? "WuWa" : "NTE";
+
+    private sealed record DashboardEvent(Guid Id, GameKey Game, string Title, DateTimeOffset StartAtUtc, DateTimeOffset EndAtUtc);
 }

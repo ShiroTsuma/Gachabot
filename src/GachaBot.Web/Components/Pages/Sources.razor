@@ -6,7 +6,7 @@
 <section class="page-heading compact">
     <div>
         <h1>Sources</h1>
-        <p class="lede">Check source status, refresh content and review errors.</p>
+        <p class="lede">Import status for each source.</p>
     </div>
     <button class="button button-primary" @onclick="RunAllNowAsync" disabled="@(_runningSource is not null)">
         @(_runningSource == AllSourcesKey ? "Refreshing…" : "Refresh all")
@@ -19,7 +19,7 @@
         @foreach (var result in _lastRun)
         {
             <span class="@(result.Succeeded ? "run-ok" : "run-failed")">
-                @result.Key — @(result.Succeeded ? ResultLabel(result.Result) : $"error / {result.FailureMessage}")
+                @SourceLabel(result.Key): @(result.Succeeded ? ResultLabel(result.Result) : result.FailureMessage)
             </span>
         }
     </section>
@@ -31,35 +31,58 @@
 }
 else
 {
-    <section class="source-grid">
-        @foreach (var source in _statuses)
-        {
-            <article class="source-card">
-                <div class="source-card-head">
-                    <span class="trust-tag">@TrustLabel(source.Trust)</span>
-                </div>
-                <h2>@SourceLabel(source.Key)</h2>
-                <code>@source.Key</code>
-                <dl>
-                    <div><dt>Baseline</dt><dd class="source-baseline @(source.HasCompletedBaseline ? "is-ready" : "is-pending")">@(source.HasCompletedBaseline ? "Ready" : "Pending initial import")</dd></div>
-                    <div><dt>Last import</dt><dd>@FormatInstant(source.LastSuccessfulRunUtc)</dd></div>
-                </dl>
-                @if (!string.IsNullOrWhiteSpace(source.LastFailureMessage))
+    <div class="data-table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Source</th>
+                    <th>Trust</th>
+                    <th>Status</th>
+                    <th>Last import</th>
+                    <th><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var source in _statuses)
                 {
-                    <p class="source-error" title="@source.LastFailureMessage">Last attempt: error · @FormatInstant(source.LastAttemptUtc)</p>
+                    <tr>
+                        <td>
+                            <a class="content-title-link" href="@ExtractedContentUrl(source.Key)"><strong>@SourceLabel(source.Key)</strong></a>
+                            <small class="source-key">@source.Key</small>
+                        </td>
+                        <td>@TrustLabel(source.Trust)</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(source.LastFailureMessage))
+                            {
+                                <span class="health-dot failed" aria-hidden="true"></span>
+                                <span title="@source.LastFailureMessage">Failed @FormatInstant(source.LastAttemptUtc)</span>
+                            }
+                            else if (!source.HasCompletedBaseline)
+                            {
+                                <span class="health-dot pending" aria-hidden="true"></span>
+                                <span>Waiting for first import</span>
+                            }
+                            else
+                            {
+                                <span class="health-dot ok" aria-hidden="true"></span>
+                                <span>OK</span>
+                            }
+                        </td>
+                        <td><time>@FormatInstant(source.LastSuccessfulRunUtc)</time></td>
+                        <td>
+                            <div class="row-actions">
+                                <button class="button button-quiet button-small"
+                                        @onclick="() => RunSourceNowAsync(source.Key)"
+                                        disabled="@(_runningSource is not null)">
+                                    @(_runningSource == source.Key ? "Refreshing…" : "Refresh")
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
                 }
-                <div class="source-actions">
-                    <button class="button button-quiet"
-                            title="Refresh this source"
-                            @onclick="() => RunSourceNowAsync(source.Key)"
-                            disabled="@(_runningSource is not null)">
-                        @(_runningSource == source.Key ? "Refreshing…" : "Refresh source")
-                    </button>
-                    <a href="@ExtractedContentUrl(source.Key)">View content</a>
-                </div>
-            </article>
-        }
-    </section>
+            </tbody>
+        </table>
+    </div>
 }
 
 @code {
@@ -103,14 +126,14 @@ else
 
     private static string TrustLabel(SourceTrust trust) => trust switch
     {
-        SourceTrust.Official => "OFFICIAL / AUTO",
-        SourceTrust.Trusted => "TRUSTED / AUTO",
-        SourceTrust.ReviewRequired => "REVIEW REQUIRED",
-        SourceTrust.Disabled => "DISABLED",
+        SourceTrust.Official => "Official",
+        SourceTrust.Trusted => "Trusted",
+        SourceTrust.ReviewRequired => "Needs review",
+        SourceTrust.Disabled => "Disabled",
         _ => trust.ToString(),
     };
 
-    private static string SourceLabel(string key) => key switch
+    internal static string SourceLabel(string key) => key switch
     {
         "official-wuthering-waves" => "Wuthering Waves · Official",
         "official-neverness-to-everness" => "Neverness to Everness · Official",
@@ -135,5 +158,5 @@ else
 
     private static string ResultLabel(IngestionResult? result) => result is null
         ? "OK"
-        : $"OK / seen {result.Seen} · new {result.Created} · changed {result.Updated} · unchanged {result.Unchanged}";
+        : $"{result.Seen} seen, {result.Created} new, {result.Updated} changed";
 }

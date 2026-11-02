@@ -18,9 +18,8 @@ else
 {
     <section class="page-heading compact">
         <div>
-            <p class="eyebrow">PREVIEW / @_details.SourceKey</p>
+            <p class="eyebrow"><a href="/content">Content</a> / @Sources.SourceLabel(_details.SourceKey)</p>
             <h1>@_details.Title</h1>
-            <p class="lede">The same document powers this preview and the Discord publisher. There is no second message format.</p>
         </div>
         <div class="detail-actions">
             @if (_details.AwaitingReview)
@@ -36,7 +35,7 @@ else
             {
                 <button class="button button-quiet" @onclick="RestoreAsync">Restore</button>
             }
-            <button class="button button-quiet" @onclick="DeleteAsync">Delete permanently</button>
+            <button class="button button-quiet button-danger" @onclick="DeleteAsync">Delete permanently</button>
         </div>
     </section>
 
@@ -94,8 +93,8 @@ else
 
     <div class="preview-grid">
         <section class="extracted-panel">
-            <div class="section-label">EXTRACTED SOURCE DATA</div>
-            <p class="panel-note">Blocks after normalization and before rendering for Discord.</p>
+            <h2 class="section-label">Extracted content</h2>
+            
             <div class="block-stack">
                 @foreach (var block in _details.Document.Blocks)
                 {
@@ -142,9 +141,8 @@ else
         </section>
 
         <section class="discord-panel">
-            <div class="section-label">DISCORD PREVIEW</div>
-            <p class="panel-note">This simulation shows the content layout. The Discord client may use a different font or width.</p>
-            <p class="preview-subtitle">Appearance simulation</p>
+            <h2 class="section-label">Discord preview</h2>
+            <p class="panel-note">Approximate; Discord may wrap text differently.</p>
             <div class="discord-channel">
                 @foreach (var message in _preview!.Messages)
                 {
@@ -209,7 +207,7 @@ else
                 }
             </div>
             <details class="payload-details">
-                <summary>Exact payload · @_preview.Messages.Count messages</summary>
+                <summary>Raw payload (@_preview.Messages.Count messages)</summary>
                 @foreach (var message in _preview.Messages)
                 {
                     <pre>@PayloadJson(message)</pre>

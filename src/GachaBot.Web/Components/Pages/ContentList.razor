@@ -6,9 +6,9 @@
 <section class="page-heading compact">
     <div>
         <h1>Content</h1>
-        <p class="lede">Announcements, updates and redeem codes. See Events for the calendar.</p>
+        <p class="lede">News, updates and redeem codes. Events have their own <a href="/events">calendar</a>.</p>
     </div>
-    <a class="button button-primary" href="/content/new">+ New post</a>
+    <a class="button button-primary" href="/content/new">New post</a>
 </section>
 
 @if (_items is null)
@@ -71,13 +71,13 @@ else
         </div>
     </form>
 
-    <p class="filter-summary" aria-live="polite">@VisibleItems.Count results in the message index.</p>
+    <p class="filter-summary" aria-live="polite">@VisibleItems.Count results</p>
 
     @if (VisibleItems.Count == 0)
     {
         <section class="empty-state">
-                <h2>No messages match the selected filters.</h2>
-            <a href="/content">Clear filters →</a>
+                <h2>Nothing matches these filters.</h2>
+            <a href="/content">Clear filters</a>
         </section>
     }
     else
@@ -98,14 +98,16 @@ else
                     @foreach (var item in SortedItems())
                     {
                         <tr>
-                            <td><span class="game-code">@GameCode(item.Game)</span><small>@item.Kind</small></td>
+                            <td><span class="game-code game-@item.Game">@GameCode(item.Game)</span> <small>@item.Kind</small></td>
                             <td>
                                 <a class="content-title-link" href="/content/@item.Id"><strong>@item.Title</strong></a>
-                                <small class="source-key">@item.SourceKey</small>
-                                @if (item.SourceUrl is not null)
-                                {
-                                    <a class="source-link" href="@item.SourceUrl" target="_blank" rel="noopener noreferrer">source ↗</a>
-                                }
+                                <small class="source-key">
+                                    @Sources.SourceLabel(item.SourceKey)
+                                    @if (item.SourceUrl is not null)
+                                    {
+                                        <text> · </text><a class="source-link" href="@item.SourceUrl" target="_blank" rel="noopener noreferrer">original ↗</a>
+                                    }
+                                </small>
                             </td>
                             <td>
                                 <span class="status-chip status-@item.Status.ToString().ToLowerInvariant()">@StatusLabel(item.Status)</span>
@@ -218,7 +220,7 @@ else
     private async Task ReloadAsync() =>
         _items = await ContentStore.ListAsync(null, null, CancellationToken.None);
 
-    private static string GameCode(GameKey game) => game == GameKey.WutheringWaves ? "WUWA" : "NTE";
+    private static string GameCode(GameKey game) => game == GameKey.WutheringWaves ? "WuWa" : "NTE";
 
     private IEnumerable<ContentListItem> SortedItems()
     {

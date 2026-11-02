@@ -6,7 +6,7 @@
 <section class="page-heading compact">
     <div>
         <h1>Guilds</h1>
-        <p class="lede">Manage the channels, games and reminders for each Discord server.</p>
+        <p class="lede">Discord servers the bot posts to.</p>
     </div>
 </section>
 
@@ -29,10 +29,10 @@ else
             <article class="guild-card @(destination.IsEnabled ? "" : "paused")">
                 <header>
                     <div>
-                        <p class="eyebrow">GUILD @destination.GuildId</p>
+                        <p class="eyebrow">@destination.GuildId</p>
                         <h2>@DisplayGuildName(destination)</h2>
                     </div>
-                    <span class="guild-state">@(destination.IsEnabled ? "ACTIVE" : "PAUSED")</span>
+                    <span class="guild-state">@(destination.IsEnabled ? "Active" : "Paused")</span>
                 </header>
                 <dl>
                     <div>
@@ -55,7 +55,7 @@ else
                     <div><dt>End reminder</dt><dd>@OffsetLabel(destination.EventEndOffsetHours)</dd></div>
                     <div><dt>Post cleanup</dt><dd>@(destination.DeleteObsoleteMessages ? "enabled" : "off")</dd></div>
                 </dl>
-                <a class="guild-history-link" href="@($"/guilds/{destination.GuildId}")">View queue and history →</a>
+                <a class="guild-history-link" href="@($"/guilds/{destination.GuildId}")">Queue and history</a>
             </article>
         }
     </section>

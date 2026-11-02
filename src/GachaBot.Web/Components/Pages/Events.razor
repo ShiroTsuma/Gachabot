@@ -4,12 +4,11 @@
 
 <PageTitle>Events · Schmidley</PageTitle>
 
-<section class="page-heading compact event-heading">
+<section class="page-heading">
     <div>
         <h1>Events</h1>
-        <p class="lede">Current and upcoming in-game activities. Times use your local timezone.</p>
+        <p class="lede">Times are shown in your local timezone.</p>
     </div>
-    <a class="button button-quiet" href="/sources">Refresh sources</a>
 </section>
 
 @if (_events is null)
@@ -18,38 +17,25 @@
 }
 else
 {
-    <form class="event-filter" method="get" aria-label="Event filters">
-        <div>
-            <label for="event-game">Game</label>
-            <select id="event-game" name="game" value="@Game">
-                <option value="">All games</option>
-                <option value="WutheringWaves">Wuthering Waves</option>
-                <option value="NevernessToEverness">Neverness to Everness</option>
-            </select>
-        </div>
-        <button class="button button-primary" type="submit">Apply</button>
-        @if (!string.IsNullOrWhiteSpace(Game))
-        {
-            <a class="button button-quiet" href="/events">Clear</a>
-        }
-    </form>
+    <nav class="segmented" aria-label="Filter by game">
+        <a class="@(string.IsNullOrWhiteSpace(Game) ? "active" : null)" href="/events">All games</a>
+        <a class="@(Game == "WutheringWaves" ? "active" : null)" href="/events?game=WutheringWaves">Wuthering Waves</a>
+        <a class="@(Game == "NevernessToEverness" ? "active" : null)" href="/events?game=NevernessToEverness">Neverness to Everness</a>
+    </nav>
 
     @if (VisibleEvents.Count == 0)
     {
         <section class="empty-state">
-                <h2>There are no current or upcoming events yet.</h2>
-            <p>Run a source import to populate this view.</p>
+                <h2>No current or upcoming events.</h2>
+            <p>Events appear here after the next source import.</p>
         </section>
     }
     else
     {
         <section class="event-calendar" aria-label="Event timeline through the latest visible end date">
             <header>
-                <div>
-                    <span class="section-label">@CalendarStart.ToString("MMMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</span>
-                    <strong>Through @LatestEventEnd.ToString("dd MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</strong>
-                </div>
-                <span class="calendar-legend"><i class="active"></i> active <i class="upcoming"></i> upcoming</span>
+                <h2>@CalendarStart.ToString("d MMM", System.Globalization.CultureInfo.GetCultureInfo("en-US")) – @LatestEventEnd.ToString("d MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</h2>
+                <span class="calendar-legend"><i class="game-WutheringWaves"></i> Wuthering Waves <i class="game-NevernessToEverness"></i> Neverness to Everness</span>
             </header>
             <div class="calendar-timeline-scroll">
                 <div class="calendar-timeline" style="--calendar-days: @CalendarDays.Count">
@@ -65,20 +51,15 @@ else
                     <div class="calendar-event-rails">
                         @foreach (var segment in TimelineSegments)
                         {
-                            <a class="calendar-event @EventState(segment.Event) palette-@segment.Palette @(segment.StartsHere ? "starts-here" : "continues-from") @(segment.EndsHere ? "ends-here" : "continues-to")"
+                            <a class="calendar-event @EventState(segment.Event) game-@segment.Event.Game @(segment.StartsHere ? "starts-here" : "continues-from") @(segment.EndsHere ? "ends-here" : "continues-to")"
                                href="/content/@segment.Event.Id"
                                style="@CalendarSegmentStyle(segment)"
                                title="@EventTooltip(segment.Event)"
                                aria-label="@EventTooltip(segment.Event)">
-                                <span class="calendar-event-game">@GameCode(segment.Event.Game)</span>
                                 <span class="calendar-event-title">@segment.Event.Title</span>
-                                @if (segment.Event.ArtworkUrl is not null)
-                                {
-                                    <img class="calendar-event-art" src="@ArchivedMediaUrl(segment.Event.SourceKey, segment.Event.Id, segment.Event.ArtworkUrl)" alt="" aria-hidden="true" loading="lazy" />
-                                }
                                 @if (segment.EndsHere)
                                 {
-                                    <span class="calendar-event-end">to @(segment.Event.EndAtUtc.ToLocalTime().ToString("dd MMM", System.Globalization.CultureInfo.GetCultureInfo("en-US")))</span>
+                                    <span class="calendar-event-end">@segment.Event.EndAtUtc.ToLocalTime().ToString("d MMM", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</span>
                                 }
                             </a>
                         }
@@ -88,24 +69,24 @@ else
             </div>
         </section>
 
-        <section class="event-agenda" aria-label="Event list">
-            <header>
-                <h2>@VisibleEvents.Count events</h2>
-            </header>
-            <div>
-                @foreach (var entry in VisibleEvents)
-                {
-                    <article class="event-row @EventState(entry)">
-                        <span class="game-code">@GameCode(entry.Game)</span>
-                        <div>
+        @foreach (var group in VisibleEvents.GroupBy(EventState))
+        {
+            <section class="panel" aria-label="@EventStateLabel(group.First()) events">
+                <header class="panel-head">
+                    <h2>@EventStateLabel(group.First()) <span class="count">@group.Count()</span></h2>
+                </header>
+                <ul class="item-list">
+                    @foreach (var entry in group.Key == "active" ? group.OrderBy(item => item.EndAtUtc) : group.OrderBy(item => item.StartAtUtc))
+                    {
+                        <li>
+                            <span class="game-code game-@entry.Game">@GameCode(entry.Game)</span>
                             <a href="/content/@entry.Id">@entry.Title</a>
-                            <p>@entry.StartAtUtc.ToLocalTime().ToString("dd.MM, HH:mm") → @entry.EndAtUtc.ToLocalTime().ToString("dd.MM, HH:mm")</p>
-                        </div>
-                        <span class="status-chip status-@entry.Status.ToString().ToLowerInvariant()">@EventStateLabel(entry)</span>
-                    </article>
-                }
-            </div>
-        </section>
+                            <span class="item-meta">@entry.StartAtUtc.ToLocalTime().ToString("dd MMM, HH:mm", System.Globalization.CultureInfo.GetCultureInfo("en-US")) – @entry.EndAtUtc.ToLocalTime().ToString("dd MMM, HH:mm", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
     }
 }
 
@@ -137,9 +118,9 @@ else
     {
         get
         {
-            var placements = AllocateEventPlacements(VisibleEvents);
+            var lanes = AllocateEventLanes(VisibleEvents);
             return VisibleEvents
-                .Select(entry => BuildTimelineSegment(entry, placements[entry.Id]))
+                .Select(entry => BuildTimelineSegment(entry, lanes[entry.Id]))
                 .OrderBy(segment => segment.Lane)
                 .ThenBy(segment => segment.StartColumn)
                 .ToArray();
@@ -168,23 +149,20 @@ else
 
             calendarEvents.Add(new CalendarEvent(
                 item.Id,
-                item.SourceKey,
                 item.Game,
                 item.Title,
-                item.Status,
                 details.SourcePublishedAtUtc.Value,
                 details.ExpiresAtUtc.Value,
-                EventArtwork(details.Document)));
+                EventArtwork(details.Document) is { } artwork ? ArchivedMediaUrl(item.SourceKey, item.Id, artwork) : null));
         }
 
         _events = calendarEvents;
     }
 
-    private static IReadOnlyDictionary<Guid, TimelinePlacement> AllocateEventPlacements(IEnumerable<CalendarEvent> events)
+    private static IReadOnlyDictionary<Guid, int> AllocateEventLanes(IEnumerable<CalendarEvent> events)
     {
         var lanes = new List<DateOnly>();
-        var assignments = new Dictionary<Guid, TimelinePlacement>();
-        var placedEvents = new List<(DateOnly End, int Palette)>();
+        var assignments = new Dictionary<Guid, int>();
 
         foreach (var entry in events.OrderBy(item => item.StartAtUtc).ThenBy(item => item.EndAtUtc))
         {
@@ -201,24 +179,13 @@ else
                 lanes[lane] = end;
             }
 
-            var overlappingPalettes = placedEvents
-                .Where(placed => placed.End >= start)
-                .Select(placed => placed.Palette)
-                .ToHashSet();
-            var palette = Enumerable.Range(0, 5).FirstOrDefault(candidate => !overlappingPalettes.Contains(candidate));
-            if (overlappingPalettes.Count >= 5)
-            {
-                palette = entry.Id.ToByteArray()[0] % 5;
-            }
-
-            placedEvents.Add((end, palette));
-            assignments[entry.Id] = new TimelinePlacement(lane, palette);
+            assignments[entry.Id] = lane;
         }
 
         return assignments;
     }
 
-    private CalendarEventSegment BuildTimelineSegment(CalendarEvent entry, TimelinePlacement placement)
+    private CalendarEventSegment BuildTimelineSegment(CalendarEvent entry, int lane)
     {
         var eventStart = LocalDate(entry.StartAtUtc);
         var eventEnd = LocalDate(entry.EndAtUtc);
@@ -227,8 +194,7 @@ else
 
         return new CalendarEventSegment(
             entry,
-            placement.Lane,
-            placement.Palette,
+            lane,
             segmentStart.DayNumber - CalendarStart.DayNumber + 1,
             segmentEnd.DayNumber - segmentStart.DayNumber + 1,
             eventStart >= CalendarStart,
@@ -238,7 +204,7 @@ else
     private string EventState(CalendarEvent entry) =>
         entry.StartAtUtc <= Clock.GetUtcNow() && entry.EndAtUtc > Clock.GetUtcNow() ? "active" : "upcoming";
 
-    private string EventStateLabel(CalendarEvent entry) => EventState(entry) == "active" ? "Active" : "Upcoming";
+    private string EventStateLabel(CalendarEvent entry) => EventState(entry) == "active" ? "Active now" : "Upcoming";
 
     private static string EventTooltip(CalendarEvent entry) =>
         $"{entry.Title}: {entry.StartAtUtc.ToLocalTime():dd.MM HH:mm} – {entry.EndAtUtc.ToLocalTime():dd.MM HH:mm}";
@@ -247,7 +213,8 @@ else
         DateOnly.FromDateTime(timestamp.ToLocalTime().DateTime);
 
     private static string CalendarSegmentStyle(CalendarEventSegment segment) =>
-        $"grid-column: {segment.StartColumn} / span {segment.ColumnSpan}; grid-row: {segment.Lane + 1};";
+        $"grid-column: {segment.StartColumn} / span {segment.ColumnSpan}; grid-row: {segment.Lane + 1};"
+        + (segment.Event.ArtworkUrl is null ? string.Empty : $" --art: url('{segment.Event.ArtworkUrl}');");
 
     private static Uri? EventArtwork(ContentDocument document) => document.Blocks
         .OfType<ImageBlock>()
@@ -257,6 +224,9 @@ else
             .SelectMany(block => block.Images)
             .Select(image => image.Url))
         .FirstOrDefault();
+
+    private static string ArchivedMediaUrl(string sourceKey, Guid contentId, Uri sourceUrl) =>
+        $"/media/{Uri.EscapeDataString(sourceKey)}/{contentId:D}?sourceUrl={Uri.EscapeDataString(sourceUrl.AbsoluteUri)}";
 
     private static string WeekdayName(DateOnly day) => day.DayOfWeek switch
     {
@@ -269,30 +239,22 @@ else
         _ => "Sun",
     };
 
-    private static string ArchivedMediaUrl(string sourceKey, Guid contentId, Uri sourceUrl) =>
-        $"/media/{Uri.EscapeDataString(sourceKey)}/{contentId:D}?sourceUrl={Uri.EscapeDataString(sourceUrl.AbsoluteUri)}";
-
-    private static string GameCode(GameKey game) => game == GameKey.WutheringWaves ? "WUWA" : "NTE";
+    private static string GameCode(GameKey game) => game == GameKey.WutheringWaves ? "WuWa" : "NTE";
 
     private sealed record CalendarEvent(
         Guid Id,
-        string SourceKey,
         GameKey Game,
         string Title,
-        ContentStatus Status,
         DateTimeOffset StartAtUtc,
         DateTimeOffset EndAtUtc,
-        Uri? ArtworkUrl);
+        string? ArtworkUrl);
 
     private sealed record CalendarEventSegment(
         CalendarEvent Event,
         int Lane,
-        int Palette,
         int StartColumn,
         int ColumnSpan,
         bool StartsHere,
         bool EndsHere);
-
-    private sealed record TimelinePlacement(int Lane, int Palette);
 
 }
