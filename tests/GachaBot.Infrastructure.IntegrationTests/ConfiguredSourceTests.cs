@@ -587,6 +587,62 @@ public sealed class ConfiguredSourceTests
     }
 
     [Fact]
+    public async Task PagedHtmlArticles_SkipsConfiguredTitlePrefixesWithoutLoadingTheirDetails()
+    {
+        const string list = """
+            <div class="listNews">
+              <a href="/en/article/news/gamebroad/20261102/270001.html">
+                <h2 class="title">Account Action Notice: 2026-11-02 (UTC+8)</h2><p class="date">2026-11-02</p>
+              </a>
+              <a href="/en/article/news/gamebroad/20260428/261969.html">
+                <h2 class="title">NTE — PlayStation 5 FAQ</h2><p class="date">2026-04-28</p>
+              </a>
+            </div>
+            """;
+        var detail = TestSourceFixture.Read("neverness-to-everness", "article-261969.html");
+        var requests = new List<Uri>();
+        var client = ClientRouting(request =>
+        {
+            requests.Add(request.RequestUri!);
+            return request.RequestUri!.AbsolutePath switch
+            {
+                var path when path.EndsWith("index.html", StringComparison.Ordinal) => Response(list, "text/html"),
+                var path when path.EndsWith("261969.html", StringComparison.Ordinal) => Response(detail, "text/html"),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound),
+            };
+        });
+        var definition = new SourceDefinition
+        {
+            Key = "official-neverness-to-everness",
+            Game = GameKey.NevernessToEverness,
+            Trust = SourceTrust.Official,
+            Handler = PagedHtmlArticleFeedHandler.HandlerKey,
+            Url = new Uri("https://nte.perfectworld.com/en/article/news/index.html"),
+            HtmlArticle = new HtmlArticleRules
+            {
+                ItemSelector = ".listNews > a[href]",
+                ExternalIdPattern = @"/(\d+)\.html$",
+                TitleSelector = ".title",
+                PublishedAtSelector = ".date",
+                PublishedAtFormat = "yyyy-MM-dd",
+                DetailContentSelector = ".articleContent",
+                PaginationUrlTemplate = "https://nte.perfectworld.com/en/article/news/index{pageSuffix}.html",
+                MaximumPages = 1,
+                StopWhenKnown = false,
+                IgnoredTitlePrefixes = ["Account Action Notice"],
+            },
+        };
+        var source = ConfiguredSource(
+            definition,
+            new PagedHtmlArticleFeedHandler(client, new StubSourceContentLookup(string.Empty, string.Empty)));
+
+        var item = Assert.Single(await ReadAllAsync(source));
+
+        Assert.Equal("261969", item.ExternalId);
+        Assert.DoesNotContain(requests, uri => uri.AbsolutePath.EndsWith("270001.html", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task RenderedHtmlCodes_SeparatesCurrentAndPermanentAndIgnoresAllActiveFallback()
     {
         var html = TestSourceFixture.Read("game8", "nte-rendered-fragment.html");

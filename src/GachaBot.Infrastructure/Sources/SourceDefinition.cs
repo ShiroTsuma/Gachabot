@@ -86,6 +86,8 @@ public sealed record HtmlArticleRules
     public bool StopOnMissingPage { get; init; } = true;
 
     public string[] IgnoredImageHosts { get; init; } = [];
+
+    public string[] IgnoredTitlePrefixes { get; init; } = [];
 }
 
 public sealed record BrowserCollectionRules

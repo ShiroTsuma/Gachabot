@@ -56,6 +56,8 @@ public sealed partial class DiscordChannelPublisher(
                     channel,
                     payload.ExistingProviderMessageId,
                     messages,
+                    // A changed code list is news: an edit to an old message further up the channel goes unnoticed.
+                    repost: payload.Kind == GachaBot.Domain.Content.ContentKind.RedeemCode,
                     cancellationToken).ConfigureAwait(false);
             }
 
@@ -117,11 +119,12 @@ public sealed partial class DiscordChannelPublisher(
         ITextChannel channel,
         string providerMessageId,
         IReadOnlyList<DiscordPreparedMessage> messages,
+        bool repost,
         CancellationToken cancellationToken)
     {
         var requestOptions = new RequestOptions { CancelToken = cancellationToken };
         var existingIds = DiscordProviderMessageIds.Parse(providerMessageId);
-        if (messages.Any(message => message.Attachments.Count > 0))
+        if (repost || messages.Any(message => message.Attachments.Count > 0))
         {
             var replacementIds = new List<ulong>(messages.Count);
             foreach (var outbound in messages)
@@ -149,9 +152,16 @@ public sealed partial class DiscordChannelPublisher(
                 continue;
             }
 
-            var message = await channel.GetMessageAsync(existingIds[index], CacheMode.AllowDownload, requestOptions)
-                .ConfigureAwait(false) as IUserMessage
-                ?? throw new InvalidOperationException("The Discord message to update no longer exists.");
+            if (await channel.GetMessageAsync(existingIds[index], CacheMode.AllowDownload, requestOptions)
+                    .ConfigureAwait(false) is not IUserMessage message)
+            {
+                // Someone deleted the earlier post; send it again instead of failing on every retry.
+                var replacement = await DiscordMessageSender.SendAsync(channel, outboundMessage, cancellationToken)
+                    .ConfigureAwait(false);
+                currentIds.Add(replacement.Id);
+                continue;
+            }
+
             var embeds = DiscordMessageSender.BuildEmbeds(outboundMessage.Embeds);
             await message.ModifyAsync(properties =>
             {
