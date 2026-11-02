@@ -174,12 +174,15 @@ public sealed class ContentStore(
             if (!isAlreadyExpired && shouldQueuePublication)
             {
                 created.ScheduledAtUtc = publicationDueAtUtc;
-                if (disposition == PublicationDisposition.ScheduleUpcoming &&
-                    await AddEventPublicationsAsync(created, cancellationToken).ConfigureAwait(false))
+                if (disposition == PublicationDisposition.ScheduleUpcoming && IsDatedEvent(created))
                 {
-                    created.Status = created.ScheduledAtUtc > now
-                        ? ContentStatus.Scheduled
-                        : ContentStatus.Active;
+                    // Dated events only get the start/ending posts each guild enabled, never a regular post.
+                    if (await AddEventPublicationsAsync(created, cancellationToken).ConfigureAwait(false))
+                    {
+                        created.Status = created.ScheduledAtUtc > now
+                            ? ContentStatus.Scheduled
+                            : ContentStatus.Active;
+                    }
                 }
                 else
                 {
@@ -309,12 +312,14 @@ public sealed class ContentStore(
                 await CancelPendingPublicationsAsync([existing.Id], now, cancellationToken).ConfigureAwait(false);
             }
 
-            if (disposition == PublicationDisposition.ScheduleUpcoming &&
-                await AddEventPublicationsAsync(existing, cancellationToken).ConfigureAwait(false))
+            if (disposition == PublicationDisposition.ScheduleUpcoming && IsDatedEvent(existing))
             {
-                existing.Status = existing.ScheduledAtUtc > now
-                    ? ContentStatus.Scheduled
-                    : ContentStatus.Active;
+                if (await AddEventPublicationsAsync(existing, cancellationToken).ConfigureAwait(false))
+                {
+                    existing.Status = existing.ScheduledAtUtc > now
+                        ? ContentStatus.Scheduled
+                        : ContentStatus.Active;
+                }
             }
             else
             {
@@ -1035,9 +1040,7 @@ public sealed class ContentStore(
         DateTimeOffset dueAtUtc,
         CancellationToken cancellationToken)
     {
-        if (content.Kind == ContentKind.Event &&
-            content.SourcePublishedAtUtc.HasValue &&
-            content.ExpiresAtUtc.HasValue)
+        if (IsDatedEvent(content))
         {
             return await AddEventPublicationsAsync(content, cancellationToken).ConfigureAwait(false);
         }
@@ -1078,6 +1081,11 @@ public sealed class ContentStore(
 
         return added;
     }
+
+    private static bool IsDatedEvent(ContentRecord content) =>
+        content.Kind == ContentKind.Event &&
+        content.SourcePublishedAtUtc.HasValue &&
+        content.ExpiresAtUtc.HasValue;
 
     private void AddPublication(
         ContentRecord content,

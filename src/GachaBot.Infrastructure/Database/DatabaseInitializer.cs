@@ -181,6 +181,25 @@ public sealed class DatabaseInitializer(
     {
         var publications = $"{QuoteIdentifier(schema)}.{QuoteIdentifier("Publications")}";
         var contentItems = $"{QuoteIdentifier(schema)}.{QuoteIdentifier("ContentItems")}";
+        await using (var findCommand = connection.CreateCommand())
+        {
+            findCommand.CommandText = """
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = @schema AND table_name = 'Publications' AND column_name = 'Purpose';
+                """;
+            var schemaParameter = findCommand.CreateParameter();
+            schemaParameter.ParameterName = "@schema";
+            schemaParameter.Value = schema;
+            findCommand.Parameters.Add(schemaParameter);
+            // The backfill below is a one-time legacy migration; rerunning it on every start turned
+            // regular posts about events into "Event starting" posts, ignoring guild settings.
+            if (await findCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null)
+            {
+                return;
+            }
+        }
+
         await using var command = connection.CreateCommand();
         command.CommandText = $"""
             ALTER TABLE {publications}

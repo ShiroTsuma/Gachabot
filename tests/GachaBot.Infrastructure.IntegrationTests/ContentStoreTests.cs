@@ -336,6 +336,42 @@ public sealed class ContentStoreTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpsertAsync_ScheduleUpcomingChangedEventDoesNotQueueRegularPost()
+    {
+        var now = new DateTimeOffset(2026, 10, 13, 16, 0, 0, TimeSpan.Zero);
+        var destinations = new FixedDestinationStore(
+        [
+            new GuildDestination(
+                101,
+                201,
+                301,
+                true,
+                GuildDestinationGames.All,
+                now,
+                EventStartOffsetHours: -1,
+                EventEndOffsetHours: 48),
+        ]);
+        var store = new ContentStore(_db, new FixedTimeProvider(now), destinations);
+        var startsAt = now.AddDays(8);
+        var original = Snapshot("Banner") with
+        {
+            Kind = ContentKind.Event,
+            PublishedAtUtc = startsAt,
+            ExpiresAtUtc = startsAt.AddDays(20),
+            PublishAtUtc = startsAt,
+        };
+
+        await store.UpsertAsync(original, PublicationDisposition.ScheduleUpcoming, TestContext.Current.CancellationToken);
+        await store.UpsertAsync(
+            original with { Document = ContentDocument.Create([new TextBlock("Banner with new details", 1)]) },
+            PublicationDisposition.ScheduleUpcoming,
+            TestContext.Current.CancellationToken);
+
+        var publication = Assert.Single(await _db.Publications.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(PublicationPurpose.EventEndingReminder, publication.Purpose);
+    }
+
+    [Fact]
     public async Task ObsoleteDiscordPublications_AreListedAndMarkedDeleted()
     {
         var now = new DateTimeOffset(2026, 8, 22, 16, 0, 0, TimeSpan.Zero);
