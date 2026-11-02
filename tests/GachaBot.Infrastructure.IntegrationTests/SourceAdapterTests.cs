@@ -43,6 +43,25 @@ public sealed class SourceAdapterTests
     }
 
     [Fact]
+    public async Task WutheringWavesSource_DoesNotClassifyArticlesAboutEventsAsEvents()
+    {
+        const string json = """
+            [{
+              "articleContent": "<p>Event overview</p>",
+              "articleId": 5529,
+              "articleTitle": "Upcoming Events in Wuthering Waves Version 3.7",
+              "startTime": "2026-10-20 18:00:00",
+              "suggestCover": ""
+            }]
+            """;
+        var source = new WutheringWavesOfficialSource(ClientReturning(json, "application/json"));
+
+        var item = Assert.Single(await ReadAllAsync(source));
+
+        Assert.Equal(ContentKind.Update, item.Kind);
+    }
+
+    [Fact]
     public async Task WutheringWavesSource_ExtractsAndCanonicalizesYouTubeLinksFromArticleMarkup()
     {
         const string json = """
@@ -79,7 +98,7 @@ public sealed class SourceAdapterTests
         var item = Assert.Single(await ReadAllAsync(source));
 
         Assert.Equal("263600", item.ExternalId);
-        Assert.Equal(ContentKind.Event, item.Kind);
+        Assert.Equal(ContentKind.News, item.Kind);
         Assert.Equal(GameKey.NevernessToEverness, item.Game);
         Assert.Equal("https://nte.perfectworld.com/en/article/news/gameevent/20260812/263600.html", item.SourceUrl.AbsoluteUri);
     }
