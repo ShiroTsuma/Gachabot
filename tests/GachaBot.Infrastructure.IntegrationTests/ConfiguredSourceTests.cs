@@ -77,7 +77,7 @@ public sealed class ConfiguredSourceTests
     }
 
     [Fact]
-    public async Task Game8EventCalendar_KeepsEditionsOfARecurringEventSeparate()
+    public async Task Game8EventCalendar_KeepsRecurringEditionsSeparateAndHandlesNewYear()
     {
         const string html = """
             <main>
@@ -90,6 +90,10 @@ public sealed class ConfiguredSourceTests
               <table><tbody><tr>
                 <td><a href="/games/Neverness-to-Everness/archives/611834">Gold Clash</a></td>
                 <td>November 23 - December 7, 2026</td>
+              </tr></tbody></table>
+              <table><tbody><tr>
+                <td><a href="/games/Neverness-to-Everness/archives/700001">New Year Countdown</a></td>
+                <td>December 28 - January 11, 2027</td>
               </tr></tbody></table>
             </main>
             """;
@@ -115,8 +119,15 @@ public sealed class ConfiguredSourceTests
         var items = await ReadAllAsync(source);
 
         Assert.Equal(
-            ["games:Neverness-to-Everness:archives:611834:20261026", "games:Neverness-to-Everness:archives:611834:20261123"],
+            [
+                "games:Neverness-to-Everness:archives:611834:20261026",
+                "games:Neverness-to-Everness:archives:611834:20261123",
+                "games:Neverness-to-Everness:archives:700001:20261228",
+            ],
             items.Select(item => item.ExternalId).ToArray());
+        var newYear = Assert.Single(items, item => item.Title == "New Year Countdown");
+        Assert.Equal(new DateTimeOffset(2026, 12, 28, 4, 0, 0, TimeSpan.Zero), newYear.PublishedAtUtc);
+        Assert.Equal(new DateTimeOffset(2027, 1, 12, 4, 0, 0, TimeSpan.Zero), newYear.ExpiresAtUtc);
     }
 
     [Fact]

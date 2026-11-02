@@ -244,6 +244,12 @@ public sealed partial class Game8EventCalendarHandler(IRenderedPageClient pageCl
             return false;
         }
 
+        // "December 28 - January 11, 2027" only states the end year; the start is in the year before.
+        if (!match.Groups["startYear"].Success && startDate > endDate)
+        {
+            startDate = startDate.AddYears(-1);
+        }
+
         var offset = TimeSpan.FromHours(utcOffsetHours);
         var dayStart = new TimeOnly(dayStartHour, 0);
         startAtUtc = new DateTimeOffset(startDate.ToDateTime(dayStart), offset).ToUniversalTime();
