@@ -1,67 +1,58 @@
-# Katalog źródeł
+# Sources
 
-Stan zweryfikowany 13 sierpnia 2026. Adaptery są celowo małe: transport HTTP i parser są odseparowane od diffu oraz polityki publikacji.
+[Back to the documentation index](README.md)
 
-| Klucz | Gra | Dane | Trust | Zachowanie |
-|---|---|---|---|---|
-| `official-wuthering-waves` | Wuthering Waves | oficjalny `ArticleMenu.json` oraz `article/{id}.json` Kuro Games | `Official` | lista daje metadane, a osobny detal pełny tekst i obrazy |
-| `official-neverness-to-everness` | NTE | paginowana lista Latest i detale Perfect World | `Official` | strony są czytane chronologicznie do pierwszego znanego wpisu |
-| `game8-wuthering-waves-redeem-codes` | Wuthering Waves | Game8 active codes | `ReviewRequired` | kandydat nigdy nie publikuje się bez weryfikacji |
-| `game8-neverness-to-everness-redeem-codes` | NTE | Game8 active codes | `ReviewRequired` | kandydat nigdy nie publikuje się bez weryfikacji |
-| `wuwatracker-wuthering-waves-events` | Wuthering Waves | WuWa Tracker timeline | `Trusted` | wydarzenia są planowane zgodnie z ich czasem rozpoczęcia |
-| `game8-neverness-to-everness-events` | NTE | Game8 event calendar | `Trusted` | wydarzenia są planowane od początku dnia serwera NTE |
+Every source is a JSON definition in `src/GachaBot.Web/source-definitions.json` handled by a small, generic handler. Fetching and parsing are separate from change detection and publishing policy.
 
-## Adresy
+| Key | Game | Reads | Trust | Handler |
+| --- | --- | --- | --- | --- |
+| `official-wuthering-waves` | Wuthering Waves | Kuro Games' `ArticleMenu.json` and per-article JSON | `Official` | `json-article-feed` |
+| `official-neverness-to-everness` | NTE | Perfect World's paginated news list and article pages | `Official` | `paged-html-article-feed` |
+| `wuwatracker-wuthering-waves-events` | Wuthering Waves | [WuWa Tracker timeline](https://wuwatracker.com/pl/timeline) | `Trusted` | `wuthering-waves-timeline` |
+| `game8-neverness-to-everness-events` | NTE | [Game8 event calendar](https://game8.co/games/Neverness-to-Everness/archives/592073) | `Trusted` | `game8-event-calendar` |
+| `game8-wuthering-waves-redeem-codes` | Wuthering Waves | [Game8 codes page](https://game8.co/games/Wuthering-Waves/archives/453149) | `Trusted` | `rendered-html-code-collection` |
+| `game8-neverness-to-everness-redeem-codes` | NTE | [Game8 codes page](https://game8.co/games/Neverness-to-Everness/archives/593718) | `Trusted` | `rendered-html-code-collection` |
 
-- Wuthering Waves JSON: `https://hw-media-cdn-mingchao.kurogame.com/akiwebsite/website2.0/json/G152/en/ArticleMenu.json`
-- Wuthering Waves dane artykułu: `https://hw-media-cdn-mingchao.kurogame.com/akiwebsite/website2.0/json/G152/en/article/{articleId}.json`
-- Wuthering Waves publiczny artykuł: `https://wutheringwaves.kurogames.com/en/main/news/detail/{articleId}`
-- NTE: `https://nte.perfectworld.com/en/article/news/index.html`
-- Game8 Wuthering Waves: `https://game8.co/games/Wuthering-Waves/archives/453149`
-- Game8 NTE: `https://game8.co/games/Neverness-to-Everness/archives/593718`
-- WuWa Tracker timeline: `https://wuwatracker.com/pl/timeline`
-- Game8 NTE events: `https://game8.co/games/Neverness-to-Everness/archives/592073`
+**Trust** decides what happens after the baseline: `Official` and `Trusted` sources post new and changed content automatically; `ReviewRequired` sources save drafts that wait for **Approve & publish**; `Disabled` sources are skipped.
 
-## Polityka działania
+## Shared behavior
 
-Pierwszy poprawny skan ustawia baseline i zapisuje zawartość bez publikowania historycznych wpisów. Kolejne skany porównują tożsamość `(sourceKey, externalId)` oraz deterministyczny hash dokumentu. Zmiana tytułu lub dokumentu tworzy rewizję. Brak zmiany nie tworzy publikacji.
+- **Baseline.** The first successful scan stores everything and posts nothing. Later scans compare each item's identity `(source, external ID)` and document hash; only a changed title or document creates a revision and a post.
+- **Normalized hashing.** Pages are converted to blocks before hashing. Paragraphs, `<br>`, list items and table rows and cells are preserved. Discord timestamps use the stored Unix time, so the passing of days does not change a hash.
+- **Isolated failures.** A `403`, timeout, changed selector or invalid JSON fails only that source. The error and attempt time are stored in `SourceStates`, shown on **Sources**, and the last good data stays in place.
+- **Classification.** Article titles map to maintenance, update, character or news. An article *about* events is news; only calendar sources create events.
 
-Surowy `ArticleMenu.json` Wuthering Waves nie jest chronologiczny: przypięte stare artykuły mogą znajdować się przed najnowszym wpisem. Handler materializuje i deduplikuje listę, parsuje `startTime`, a następnie sortuje wpisy malejąco po dacie; elementy bez poprawnej daty pozostają na końcu w kolejności źródłowej. Jest to kolejność pracy, nie granica historii. Dla WUWA `StopWhenKnown=false`, więc znany przypięty wpis zostaje pominięty, ale nie kończy skanu i nie może ukryć późniejszego nowego artykułu.
+## Source notes
 
-Stan całej listy jest sprawdzany zbiorczo (maksymalnie 500 identyfikatorów na zapytanie), a tylko brakujące lub wymagające naprawy wpisy pobierają detal artykułu. Koordynator zapisuje wyniki porcjami po 50. Przy pierwszym baseline nadal celowo pobierane są wszystkie nieznane detale, aby utworzyć pełne archiwum, lecz najnowsze artykuły są obsługiwane jako pierwsze. Przy kolejnym niezmienionym skanie feed WUWA wymaga tylko dwóch odczytów stanu dla obecnych 663 pozycji i nie wykonuje setek zapytań `Exists`.
+**Wuthering Waves news.** The raw `ArticleMenu.json` is not in date order: pinned old articles can come before the newest one. The handler parses `startTime`, sorts newest first, and keeps scanning past known items (`StopWhenKnown: false`), so a pinned article cannot hide a newer one. State is checked in bulk, and only new or repairable items fetch their detail JSON; an unchanged scan of the 600+ items costs two state queries.
 
-Odpowiedź 403, zmiana selektorów, timeout albo niepoprawny JSON nie zatrzymują pozostałych adapterów. Błąd i czas próby trafiają do `SourceStates`, są widoczne w dashboardzie i logach. Ostatni poprawny baseline pozostaje ważny.
+**NTE news.** Pages are read newest first until the first known article; a missing next page (`404`) ends pagination normally. The date comes from the list tile (`yyyy-MM-dd`) or, as a fallback, the article header (`yyyy.MM.dd`). Duplicate technical images from `docs.oa.wanmei.net` are dropped (`IgnoredImageHosts`), and titles starting with "Account Action Notice" are skipped (`IgnoredTitlePrefixes`).
 
-Brak kolejnej strony listy (`404`) oznacza naturalny koniec paginacji i nie oznacza awarii źródła. Data jest odczytywana najpierw z kafelka listy, a następnie — jako fallback — z nagłówka detalu. Dla NTE obsługiwane są formaty listy `yyyy-MM-dd` i detalu `yyyy.MM.dd`.
+**WuWa Tracker events.** Banners and activities are read with their official links. Start and end are normalized to the 04:00 server reset in UTC+8; the hour embedded in the source payload is not used.
 
-Źródło kodów Wuthering Waves śledzi wszystkie sekcje z kodami poza jawną listą kodów permanentnych, zamiast polegać wyłącznie na aktualnym nagłówku livestreamu. Obsługuje zarówno klasyczne wiersze z nagrodą i datą, jak i dynamiczny układ Game8: kody w tabeli, wspólny timestamp `data-date` oraz listę nagród pod tabelą. Daty wygaśnięcia są publikowane w tym samym pełnym i względnym formacie Discorda co daty eventów.
+**Game8 event calendar.** Only the "List of Current Events" and "List of Upcoming Events" tables are read; permanent and previous events are excluded. Game8 gives dates without hours, so events start and end at the configured server-day start. Dates such as "December 28 - January 11, 2027" omit the start year and are resolved to the previous year. Each item's identifier includes its start date, so the next edition of a recurring event is a separate item.
 
-Daty eventów Wuthering Waves z WuWa Tracker są normalizowane do resetu serwera o 04:00 w skonfigurowanej strefie UTC+8. Godzina osadzona w źródłowym payloadzie nie jest używana jako godzina rozpoczęcia lub zakończenia eventu.
+**Game8 redeem codes.** Game8 can answer `202` and render the page only after a JavaScript challenge, so these sources use Playwright and wait for a configured element. Codes, rewards and expiry dates are read from table rows. Each game produces two lists: current codes (`aggregate:current`) and permanent codes (`aggregate:permanent`). When the page has no version-specific section, dated codes under "All Active Redeem Codes" count as current. An expired code is kept as an archived item with its rewards, and codes with an unrecognized expiry are not published.
 
-Definicja NTE ignoruje techniczne duplikaty obrazów z `docs.oa.wanmei.net`; artykuł potrafi zawierać obok nich właściwe grafiki z CDN `ntevmg.perfectworld.com`. Lista ignorowanych hostów jest regułą JSON (`IgnoredImageHosts`), a nie warunkiem zaszytym w parserze. Podobnie `IgnoredTitlePrefixes` pomija artykuły po początku tytułu; NTE pomija w ten sposób cykliczne „Account Action Notice”.
+## Handlers
 
-Game8 najpierw potrafi zwrócić HTTP `202` i dopiero po wykonaniu wyzwania JavaScript udostępnia dokument. Handler Playwright nie uznaje początkowego statusu za wynik: czeka na skonfigurowany element DOM, a deklaratywne reguły odczytują kod, nagrody i datę wygaśnięcia z wiersza tabeli. Kody bieżącej wersji i kody permanentne trafiają do osobnych wpisów (`aggregate:current` i `aggregate:permanent`). Sekcja ogólna „All Active” nie zastępuje pustej sekcji bieżącej wersji. Kod po dacie ważności jest zachowywany jako osobny rekord archiwalny z nagrodami. Nierozpoznane daty nie są publikowane. Game8 pozostaje źródłem pomocniczym i ma `ReviewRequired`.
+| Handler | Use for |
+| --- | --- |
+| `json-article-feed` | A JSON list with an optional JSON detail per item |
+| `paged-html-article-feed` | An HTML list with numbered pages and HTML article pages |
+| `wuthering-waves-timeline` | The WuWa Tracker timeline |
+| `game8-event-calendar` | Game8 tables of dated events, rendered with Playwright |
+| `rendered-html-code-collection` | Pages that need a browser, read into code lists by selectors |
 
-## Definicje i handlery
+## Tests
 
-Reguły znajdują się w `src/GachaBot.Web/source-definitions.json`. Resolver obsługuje obecnie:
+Real responses are stored in `test-sources/` and copied to the test output; parser tests never use the network. Keep the original URL and capture date in [test-sources/README.md](../test-sources/README.md) when refreshing a fixture.
 
-- `json-article-feed` — lista JSON oraz opcjonalny detal JSON per identyfikator;
-- `paged-html-article-feed` — lista HTML, kolejne strony, detal HTML i zatrzymanie na znanym wpisie;
-- `rendered-html-code-collection` — strona dynamiczna otwierana przez Playwright; agreguje aktywne kody, nagrody i daty według selektorów z JSON.
+`Game8LiveContractTests` are marked explicit. They load the production `source-definitions.json`, start Chromium and check Game8's live markup; see the test-sources README for the command.
 
-Snapshoty prawdziwych odpowiedzi są w `test-sources/`. Testy kopiują je do katalogu wynikowego i nie łączą się z siecią. Każde odświeżenie fixture’u powinno zachować URL i datę w `test-sources/README.md`.
+## Adding a source
 
-Diff nie jest liczony z raw HTML. Parser najpierw normalizuje stronę do bloków domenowych, a SHA-256 powstaje z ich kanonicznej reprezentacji JSON. Zmiana klas, licznika komentarzy albo innego niewyciąganego fragmentu DOM nie tworzy rewizji. Względny czas Discord używa stabilnego Unix timestampu daty wygaśnięcia, więc upływ kolejnego dnia również nie zmienia hasha.
-
-Normalizacja treści zachowuje paragrafy, `<br>`, elementy list oraz osobne wiersze i komórki tabel. Renderer Discord escapuje składnię Markdown wyłącznie dla zwykłych bloków tekstowych; kontrolowane nagłówki, linki, pola i bloki kodu zachowują swoje formatowanie.
-
-Testy `Game8LiveContractTests` są oznaczone jako `Explicit`. Sprawdzają rzeczywisty DOM NTE i Wuthering Waves przy użyciu dokładnej konfiguracji produkcyjnej. Instrukcja uruchomienia znajduje się w `test-sources/README.md`.
-
-## Dodanie nowego źródła
-
-1. Jeśli format pasuje do istniejącego handlera, dodaj definicję w `source-definitions.json`.
-2. Nadaj stabilne `Key`, wybierz grę, trust, URL i reguły selektorów/pól.
-3. Dodaj ten sam klucz do sekcji `Sources`, aby można go było wyłączyć lub zmienić trust.
-4. Pobierz rzeczywistą odpowiedź do `test-sources/` i dodaj test kontraktowy parsera.
-5. Nowy `ISourceHandler` implementuj tylko dla nowego rodzaju transportu lub nawigacji.
+1. If the site fits an existing handler, add a definition to `source-definitions.json` with a stable `Key`, the game, trust, URL and selector or field rules.
+2. Optionally override a source per instance without editing the definition: `Sources__<key>__Trust=ReviewRequired` changes its trust, `Sources__<key>__Enabled=false` turns it off.
+3. Save a real response under `test-sources/` and add a parser contract test.
+4. Write a new `ISourceHandler` only for a new kind of transport or navigation.

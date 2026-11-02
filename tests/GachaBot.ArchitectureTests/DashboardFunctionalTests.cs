@@ -106,6 +106,7 @@ public sealed class DashboardFunctionalTests : IClassFixture<DashboardApplicatio
         Assert.Contains("discord-channel", html, StringComparison.Ordinal);
         Assert.Contains("Raw payload", html, StringComparison.Ordinal);
         Assert.Contains("Event heading", html, StringComparison.Ordinal);
+        Assert.Contains("<strong>Event heading</strong>", html, StringComparison.Ordinal);
         Assert.Contains("https://cdn.example.com/event.webp", html, StringComparison.Ordinal);
         Assert.Contains($"/media/", html, StringComparison.Ordinal);
         Assert.Contains(id.ToString("D"), html, StringComparison.Ordinal);

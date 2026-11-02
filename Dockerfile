@@ -9,9 +9,10 @@ COPY src/GachaBot.Web/GachaBot.Web.csproj src/GachaBot.Web/
 RUN dotnet restore src/GachaBot.Web/GachaBot.Web.csproj --configfile NuGet.Config
 
 COPY src/ src/
+# Restore again with the sources present: the SDK only adds the Blazor script package
+# (_framework/blazor.web.js) once it can see the .razor components.
 RUN dotnet publish src/GachaBot.Web/GachaBot.Web.csproj \
     --configuration Release \
-    --no-restore \
     --output /app/publish
 
 FROM mcr.microsoft.com/playwright/dotnet:v1.64.1-noble AS runtime

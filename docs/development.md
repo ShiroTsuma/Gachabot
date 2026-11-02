@@ -2,7 +2,7 @@
 
 Use the exact .NET SDK version pinned in `global.json`. Locked dependency restore includes SDK-provided ASP.NET assets, so a different SDK patch can require a different lockfile. Docker builds use the same pinned SDK.
 
-[Back to the README](../README.md)
+[Back to the documentation index](README.md)
 
 ## Run from source
 
@@ -12,6 +12,7 @@ Configure PostgreSQL and S3 values exactly as for Docker, then run:
 dotnet restore GachaBot.slnx --configfile NuGet.Config
 dotnet build GachaBot.slnx --no-restore
 dotnet test GachaBot.slnx --no-build --no-restore
+node --test tests/ui/relative-time.test.mjs
 
 $env:ASPNETCORE_ENVIRONMENT = 'Development'
 $env:Discord__Enabled = 'false'

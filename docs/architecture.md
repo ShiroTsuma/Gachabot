@@ -1,45 +1,64 @@
-# Architektura
+# Architecture
 
-Projekt jest modularnym monolitem zgodnym z Clean Architecture.
+[Back to the documentation index](README.md)
+
+Gachabot is a modular monolith in four projects. Dependencies point inward, and an architecture test enforces it:
+
+| Project | Contains | Depends on |
+| --- | --- | --- |
+| `GachaBot.Domain` | Content documents and blocks, games, statuses, redeem codes | nothing |
+| `GachaBot.Application` | Use-case contracts: ingestion, content management, publishing, media | Domain |
+| `GachaBot.Infrastructure` | PostgreSQL stores, source adapters, Playwright, Discord, S3, background workers | Application |
+| `GachaBot.Web` | Blazor Server dashboard and the composition root | all of the above |
 
 ```text
-HTTP sources ──> adapters ──> ingestion coordinator ──> PostgreSQL schemas + media archive
-                                      │
-                                      ├── baseline / review policy
-                                      └── transactional outbox ──> Discord REST
+Sources ──> source adapters ──> ingestion coordinator ──> PostgreSQL (schema per source) + S3 media
+                                        │
+                                        ├── baseline and trust policy
+                                        └── publication queue ──> dispatcher ──> Discord REST
 
-Blazor dashboard ──> application ports ──> composite store ──> PostgreSQL
+Dashboard ──> application contracts ──> composite store ──> every source schema
 ```
 
-Zależności kodu biegną do środka: Domain nie zna żadnej warstwy zewnętrznej, Application zna tylko Domain, Infrastructure implementuje porty Application, a Web jest composition rootem. Test architektoniczny pilnuje tych granic.
+## Content documents
 
-## Dokument blokowy
+Content is not stored as a Discord embed. A `ContentDocument` is an ordered list of validated blocks:
 
-Treść nie jest pojedynczym polem embed. `ContentDocument` przechowuje uporządkowane bloki z pozycją i walidacją:
+- `HeadingBlock`, `TextBlock`, `LinkBlock`
+- `ImageBlock` and `GalleryBlock`, with alt text
+- `KeyValueBlock`
+- `CodeBlock`
 
-- `HeadingBlock`, `TextBlock`, `LinkBlock`;
-- `ImageBlock`, `GalleryBlock` z tekstem alternatywnym;
-- `KeyValueBlock`;
-- `CodeBlock`.
+The canonical JSON of the blocks is hashed with SHA-256. The hash, not the raw page, decides whether content changed, so markup noise on a source page does not create revisions. Each change keeps the previous title and document in `ContentRevisions`. A new block type needs serialization and rendering, but no table change.
 
-Canonical JSON bloku jest hashowany SHA-256. Dodanie następnego rodzaju wymaga implementacji serializacji i renderera, ale nie zmiany tabeli treści. PostgreSQL przechowuje dokument JSON i jego hash, a poprzednie wersje w `ContentRevisions`.
+## One schema per source
 
-## Izolacja źródeł
+Every source writes to its own PostgreSQL schema named after its key; dashboard posts use `manual`. Content, revisions, source state and the publication queue of a source live together, so one import is a single atomic write. The composite store routes writes to the right schema and merges reads across all of them for the dashboard and the dispatcher.
 
-Każdy adapter źródła ma osobny schemat PostgreSQL nazwany kluczem źródła; wpisy ręczne używają schematu `manual`. Composite store kieruje zapis do właściwego schematu, a odczyty dashboardu i kolejka publikacji agregują wszystkie schematy. Treść, rewizje, stan źródła i transactional outbox danego adaptera pozostają razem, dzięki czemu pojedynczy zapis nadal jest atomowy.
+Imports are batched: an adapter looks up the state of up to 500 identifiers per query, and the coordinator writes changes in batches of 50. An unchanged scan of a large feed costs only a few queries.
 
-Adapter najpierw pobiera stan wszystkich identyfikatorów źródła w porcjach do 500, zamiast wykonywać `Exists` i odczyt dokumentu dla każdego elementu. Koordynator przekazuje zmiany do zapisu porcjami po 50. Pierwszy baseline korzysta z parametryzowanych wielowierszowych insertów, a kolejne niezmienione skany kończą się na ograniczonej liczbie odczytów. Indeks `(SourceKey, ExternalId)` jest tworzony również dla istniejących plików bazy.
+## Publication
 
-## Publikacja
+Creating or changing content adds `PublicationRecord` rows in the same transaction, one per destination server and purpose:
 
-Utworzenie lub zmiana zaufanej treści zapisuje `PublicationRecord` w tej samej bazie co treść. Worker lease’uje rekord, przekłada neutralne bloki domenowe na plan Discord rich embedów, publikuje przez Discord REST, zapisuje message ID albo ustawia retry z opóźnieniem wykładniczym. Kompozytor dzieli duże dokumenty według limitów API: 10 embedów i 6000 znaków na wiadomość, 4096 znaków opisu i 25 pól na embed. Po ośmiu próbach rekord przechodzi w `Failed`.
+| Purpose | Created for | Due |
+| --- | --- | --- |
+| `Standard` | News, updates, codes, manual posts | Immediately, or at the scheduled time |
+| `EventStart` | Dated events, where the server enabled start posts | Start minus the server's offset |
+| `EventEndingReminder` | Dated events, where the server enabled reminders | End minus the server's offset |
 
-Jeżeli publikacja zajmuje kilka wiadomości, `ProviderMessageId` przechowuje uporządkowaną listę snowflake ID. Aktualizacja edytuje istniejące części, tworzy brakujące i usuwa nadmiarowe. Dashboard preview mapuje ten sam plan na neutralne DTO, więc nie ma osobnej logiki formatującej. Konkretne adresy filmów YouTube są kanonizowane przez wspólną politykę linków i trafiają do `content`, aby Discord mógł utworzyć natywny video/link embed; pole `video` nie jest ustawiane przez aplikację.
+The dispatcher wakes every 15 seconds, leases due rows, composes the messages and sends them through Discord REST. A failure reschedules the row with exponential backoff, capped at 15 minutes, for up to 100 attempts (about a day). Each server has its own rows, so one failing server does not block another.
 
-Jest to gwarancja at-least-once: awaria procesu po wysłaniu do Discorda, lecz przed zapisem receipt, może spowodować powtórzenie. Discord nie udostępnia klucza idempotencji dla zwykłego `SendMessage`; zapis `ProviderMessageId` ogranicza powtórzenia po poprawnym receipt.
+The composer turns blocks into rich embeds within Discord's limits (10 embeds and 6,000 characters per message, 4,096 description characters and 25 fields per embed) and splits larger documents into several messages. `ProviderMessageId` stores all their IDs in order, so an update can edit, add or remove parts. If a later part fails to send, the parts already sent are deleted before the retry. Redeem code lists are an exception to editing: a changed list is posted as new messages, and the old ones are deleted only where the server enabled obsolete-post cleanup.
 
-## Czas i archiwum
+The dashboard preview renders the same composer output, so there is no second formatter. Delivery is at least once: if the process stops after Discord accepts a message but before the receipt is saved, the message can be sent again.
 
-Warstwa aplikacji operuje w UTC. Dashboard przyjmuje i pokazuje czas Europe/Warsaw. PostgreSQL przechowuje znaczniki czasu z informacją o strefie i ma indeksy kolejki/statusu.
+## Events
 
-Wygasłe wpisy są oznaczane `Archived`, a oczekujące publikacje anulowane. Obrazy są archiwizowane oddzielnie na filesystemie według SHA-256; URL musi być HTTPS, DNS nie może wskazywać sieci prywatnej, typ MIME musi być obrazem, a rozmiar mieścić się w konfigurowalnym limicie (domyślnie 20 MiB). Świadome odrzucenie zbyt dużego pliku nie cofa zapisu treści i ma osobny komunikat informacyjny bez stosu wyjątku.
+Events come only from calendar sources, and each has a start and an end. Changing a server's offsets, subjects or enabled state recalculates its pending event posts; an edited event moves its pending reminders. Calendar sources include the start date in each event's identifier, so the next edition of a recurring event is a new item rather than a date change of the previous one.
+
+## Time, retention and media
+
+Everything is stored in UTC. The new-post form reads its input as Europe/Warsaw; lists display the server's timezone.
+
+An hourly worker archives expired content and official announcements older than one month, and cancels their pending posts. Artwork is downloaded over HTTPS from public addresses only, checked to be an image within the size limit, optimized, and stored in S3 under a content hash.

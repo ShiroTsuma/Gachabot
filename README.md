@@ -1,64 +1,47 @@
 <p align="center">
-  <img src="src/GachaBot.Web/wwwroot/images/suisui.webp" width="80" height="80" alt="Suisui">
+  <img src="src/GachaBot.Web/wwwroot/images/suisui.webp" width="96" height="96" alt="Suisui">
 </p>
 
 <h1 align="center">Gachabot</h1>
 
 <p align="center">
-  <strong>Game announcements and event reminders for your Discord communities.</strong><br>
-  A self-hosted bot and web dashboard for Wuthering Waves and Neverness to Everness.
+  <strong>Never miss a banner, event or redeem code.</strong><br>
+  A self-hosted Discord bot and dashboard for Wuthering Waves and Neverness to Everness.
 </p>
 
 <p align="center">
+  <a href="https://github.com/ShiroTsuma/Gachabot/actions/workflows/ci.yml"><img src="https://github.com/ShiroTsuma/Gachabot/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI status"></a>
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10">
-  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Deployment-Docker-2496ED?style=flat-square" alt="Docker deployment">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Source_available-8ab4f8?style=flat-square" alt="Source-available license"></a>
 </p>
 
 <p align="center">
-  <a href="#preview-the-dashboard">Try locally</a> ·
+  <a href="#try-it-locally"><strong>Try it locally</strong></a> ·
   <a href="#run-your-own-bot">Run your bot</a> ·
-  <a href="#how-it-works">Architecture</a> ·
-  <a href="#documentation">Documentation</a>
+  <a href="#configure-a-guild">Configure a guild</a> ·
+  <a href="#one-event-two-servers">Example</a> ·
+  <a href="#how-delivery-works">How delivery works</a> ·
+  <a href="docs/README.md">Documentation</a>
 </p>
 
-Gachabot collects announcements and event calendars into one operational view, then publishes updates independently to each Discord guild. Choose which games and subjects a server follows, where updates appear, and when event reminders should arrive.
+![Gachabot dashboard with content counts, events ending and starting soon, recent updates and source health](docs/images/dashboard.png)
 
-The dashboard shows imported content, source health, upcoming events, pending publications and delivery history.
+*The dashboard of a running instance, with live data from the official sites, WuWa Tracker and Game8.*
 
-![Gachabot dashboard with live publication counts and source check time](docs/images/dashboard-live.png)
+Gachabot watches the official news feeds and community event calendars, keeps one archive of everything it finds, and posts to each Discord server on that server's terms: which games, which subjects, which channel, and when event reminders arrive. The dashboard shows what was imported, what is about to be posted, and where every post went.
 
-*Dashboard captured from a running self-hosted instance.*
-
-## What it handles
-
-| Capability | Behavior |
+| Follow | Gachabot handles |
 | --- | --- |
-| Game feeds | Import configured announcements and event calendars for Wuthering Waves and Neverness to Everness. |
-| Per-server subscriptions | Choose games, subjects and a destination channel separately for each guild. |
-| Event reminders | Schedule start and end reminders, with configurable offsets from 0 to 72 hours. |
-| Publication reliability | Deduplicate updates, retain source revisions and retry failed deliveries independently per guild. |
-| Editorial control | Inspect imported blocks, review content and prepare manual posts in the dashboard. |
-| Media archive | Store artwork in an S3-compatible bucket and send event images as Discord attachments. |
+| News and patch notes | Official Wuthering Waves and Neverness to Everness announcements, with images archived to your own S3 bucket |
+| Events and banners | Calendars from WuWa Tracker and Game8, with a start post and an "ending soon" reminder at times each server picks |
+| Redeem codes | Current and permanent code lists with rewards and expiry; a changed list is posted again so members notice it |
+| Several servers | Separate channel, games, subjects, reminder offsets and retry state for every guild |
+| Editorial control | A preview of the exact Discord messages, manual posts, approvals, archive and per-guild resends |
 
-<details>
-<summary>Event calendar</summary>
+## Try it locally
 
-![Live event timeline with game artwork and start and end dates](docs/images/events.png)
-
-</details>
-
-<details>
-<summary>Imported content and Discord preview</summary>
-
-![Imported game content alongside its Discord message preview](docs/images/publication-preview.png)
-
-</details>
-
-## Preview the dashboard
-
-**Requires Docker with Compose.** This isolated configuration includes PostgreSQL and SeaweedFS for S3-compatible storage. No `.env`, Discord account, bot token, OAuth setup or TLS certificate is needed.
+**Requires Docker with Compose.** The preview bundles PostgreSQL and S3-compatible storage. It needs no Discord application, token, `.env` file or certificate, and it never posts to Discord.
 
 ```sh
 git clone https://github.com/ShiroTsuma/Gachabot.git
@@ -66,88 +49,120 @@ cd Gachabot
 docker compose -f compose.preview.yaml up --build -d
 ```
 
-Open **http://localhost:18791**. The first build downloads the .NET and Playwright images and can take several minutes. Follow startup with:
+1. Open **http://localhost:18791**. The first build downloads the .NET and Playwright images and takes a few minutes.
+2. The preview starts empty. Open **Sources** and click **Refresh all** to import live data. The first import archives artwork, so the official feeds take a few minutes; the event calendars and code pages finish in seconds.
+3. Browse **Events**, open any post to see its Discord preview, or write a draft in **New post**.
 
-```sh
-docker compose -f compose.preview.yaml logs -f dashboard
-```
-
-The preview starts with an empty database. Browse the dashboard and create a manual draft to explore the editor. Automatic source polling and Discord delivery are disabled; no messages are sent to a guild. It is a local dashboard preview, not a fully configured live bot.
-
-The dashboard is bound to loopback only. The preview uses development access and fixed local credentials; do not expose it publicly or reuse those credentials for a live deployment.
-
-Stop it with `docker compose -f compose.preview.yaml down`. Named volumes retain your local preview data between runs.
+> [!NOTE]
+> The preview binds to `127.0.0.1` only and signs you in without Discord. Do not expose it or reuse its credentials. Stop it with `docker compose -f compose.preview.yaml down`; add `-v` to also delete its data.
 
 ## Run your own bot
 
-The production deployment uses your Discord application, PostgreSQL database and S3-compatible bucket. The included Compose stack runs Gachabot behind Caddy for HTTPS.
+A production instance uses your Discord application, a PostgreSQL database and an S3-compatible bucket. The included Compose file runs Gachabot behind Caddy for HTTPS.
 
-1. Create a Discord application with a bot and OAuth credentials.
-2. Provision PostgreSQL and an S3-compatible bucket, then copy `.env.example` to `.env` and fill in their connection details.
-3. Set the hostname and TLS configuration in `Caddyfile`, and register the matching Discord OAuth redirect URL.
-4. Start with `docker compose up --build -d`.
-5. Run `/gachabot-configure` in your guild, select its games and subjects, then enable publishing.
+1. Create a Discord application with a bot and OAuth2 credentials.
+2. Provision PostgreSQL and a bucket, then copy `.env.example` to `.env` and fill in the connection details.
+3. Set your hostname in `Caddyfile` and register the matching OAuth redirect URL.
+4. Start it with `docker compose up --build -d`.
+5. In your server, run `/gachabot-configure`, choose subjects and reminders, then `/gachabot-enable`.
 
-Follow the **[installation guide](docs/installation.md)** for exact settings, required Discord permissions, LAN certificates and public-domain deployment. PostgreSQL and S3 are external in the production Compose file; the preview file provisions separate local services for evaluation.
-
-## How it works
-
-```mermaid
-flowchart LR
-    Sources[Announcements and calendars] --> Import[Source adapters]
-    Import --> Store[(PostgreSQL)]
-    Import --> Media[(S3 media archive)]
-    Store <--> Dashboard[Gachabot dashboard]
-    Store --> Queue[Per-guild schedules and retries]
-    Media --> Delivery[Discord delivery]
-    Queue --> Delivery
-    Delivery --> Guilds[Configured guild channels]
-```
-
-Source definitions describe addresses, parsers and field rules. Ingestion retains revisions and publication state in PostgreSQL. Guild configuration determines which subjects become scheduled deliveries; separate retry state prevents a failed server from blocking the others.
-
-The first scan of official announcement sources establishes a baseline instead of posting the entire backlog. Event timelines can schedule active or upcoming events according to each guild's configuration.
+The [installation guide](docs/installation.md) covers every setting, the bot permissions, LAN certificates and public deployment.
 
 ## Configure a guild
 
-Run these slash commands in each guild. They are intentionally restricted to members with **Manage Server**.
+Each server is configured from Discord by members with **Manage Server**:
 
 ```text
 /gachabot-configure channel:#updates wuthering-waves:true neverness-to-everness:true delete-obsolete-posts:true
 /gachabot-event-schedule start-before-hours:0 end-before-hours:48
 /gachabot-subjects game:Wuthering Waves
-/gachabot-subjects game:Neverness to Everness
 /gachabot-enable
 /gachabot-status
 ```
 
-`start-before-hours` and `end-before-hours` accept `-1` to disable that type of event post, or values from `0` to `72`, including fractions such as `0.5`. The defaults publish an event at its start and send an end reminder 48 hours before it finishes. Use `/gachabot-disable` to pause a guild or `/gachabot-enable` to resume it.
+| Command | What it does |
+| --- | --- |
+| `/gachabot-configure` | Sets the channel, followed games and obsolete-post cleanup. A new server starts paused, so nothing is posted before you finish. |
+| `/gachabot-event-schedule` | Hours before an event's start and end to post. `0` posts at the moment itself, `-1` turns that post off; values up to `72` and fractions such as `0.5` are allowed. Defaults: at the start, and 48 hours before the end. |
+| `/gachabot-subjects` | Opens a private selector for one game: events, codes, news, updates, maintenance, characters and announcements. |
+| `/gachabot-enable`, `/gachabot-disable` | Starts or pauses posting. Enabling queues running events that this server has not seen yet. |
+| `/gachabot-status` | Shows the server's current settings. |
 
-`delete-obsolete-posts:true` is a per-guild setting on `/gachabot-configure`. It removes only messages posted by GachaBot after their source content expires or is archived; messages from people and other bots are never touched. Omit the option during later configuration changes to keep the existing setting.
+`delete-obsolete-posts` removes only Gachabot's own messages once their content expires or is archived; messages from people and other bots are never touched.
 
-`/gachabot-subjects` opens a private interactive selector for one game. Toggle the subjects you want (events, codes, news, updates, maintenance, characters, and announcements), then press **Save subjects**. Subject choices are stored separately for each game and affect both future posts and pending event reminders.
+## One event, two servers
 
-`/gachabot-configure` saves a new guild in the paused state, so you can choose the channel, games, schedule, and subjects before anything is posted. `/gachabot-enable` starts publications and queues currently active events that have not already been published for that guild. Reconfiguring a guild that is already enabled leaves it enabled. Each guild has separate delivery and retry state, so a failure on one server cannot block another.
+*Echo Erase Leisure Event* ran from 21 October to 8 November 2026. Two servers follow Wuthering Waves events with different schedules:
+
+| Time (UTC) | Server A: start `0`, end `48` | Server B: start `-1`, end `48` |
+| --- | --- | --- |
+| 21 Oct, 20:00 | **Event starting:** Echo Erase Leisure Event | — |
+| 6 Nov, 20:00 | **Ending soon:** Echo Erase Leisure Event | **Ending soon:** Echo Erase Leisure Event |
+
+Both posts carry the event's description, artwork and start and end as Discord timestamps, which every member sees in their own timezone. If the calendar later changes the event's dates or description, the pending reminders move with it; posts already sent are not repeated.
+
+<details>
+<summary><strong>Event calendar</strong></summary>
+
+![Event calendar with artwork on each bar, running and upcoming events for both games](docs/images/events.png)
+
+</details>
+
+<details>
+<summary><strong>Imported content and its Discord preview</strong></summary>
+
+![Extracted blocks of an event next to the rendered Discord message](docs/images/publication-preview.png)
+
+</details>
+
+## How delivery works
+
+```mermaid
+flowchart LR
+    Sources[Official feeds, calendars, code pages] --> Import[Source adapters]
+    Import --> Store[(PostgreSQL)]
+    Import --> Media[(S3 media archive)]
+    Store <--> Dashboard[Dashboard]
+    Store --> Queue[Per-guild queue and retries]
+    Media --> Delivery[Discord delivery]
+    Queue --> Delivery
+    Delivery --> Guilds[Guild channels]
+```
+
+Sources are checked every hour. Each source has its own PostgreSQL schema, and a failing source never blocks the others.
+
+<details>
+<summary><strong>Delivery rules</strong></summary>
+
+- **No backlog on first run.** The first successful scan of a source records a baseline instead of posting its whole history.
+- **Only real changes post.** Content is normalized into blocks and hashed; a changed class name or comment counter on the source page is not a change. Edits keep their previous revisions.
+- **Events are calendar entries.** Only dated entries from the event calendars count as events. An announcement *about* events is news. Recurring events, such as an NTE event that returns every few weeks, are tracked per edition.
+- **Each server gets its own schedule.** Start posts and reminders follow that server's offsets and subjects; changing them recalculates pending posts.
+- **Codes are announced, not silently edited.** A changed code list is posted as a new message; the old one is removed only where obsolete-post cleanup is on.
+- **Retries are per server.** A failed delivery retries with backoff for about a day, so a Discord outage or a missing permission fixed later does not lose posts.
+- **At least once.** If the process stops after Discord accepts a message but before Gachabot records it, that message can be sent again on restart.
+- **Manual decisions stick.** An item archived by hand stays archived even when its source changes.
+
+</details>
 
 ## Documentation
 
 | Guide | Contents |
 | --- | --- |
-| [Installation](docs/installation.md) | Production configuration, TLS, Discord application and first connection |
-| [User guide](docs/user-guide.md) | Dashboard navigation and guild workflows |
-| [Architecture](docs/architecture.md) | Components, persistence and publication flow |
-| [Operations](docs/operations.md) | Deployment, maintenance and recovery |
-| [Sources](docs/sources.md) | Source registry, parsing and operational configuration |
-| [Development](docs/development.md) | Source build, tests and local execution |
+| [Installation](docs/installation.md) | Discord application, configuration, TLS and first start |
+| [Dashboard guide](docs/user-guide.md) | Every page of the dashboard and what its actions do |
+| [Operations](docs/operations.md) | Updates, backups, diagnostics and maintenance |
+| [Sources](docs/sources.md) | Supported sources, parsing rules and adding a new source |
+| [Architecture](docs/architecture.md) | Layers, persistence and the publication pipeline |
+| [Development](docs/development.md) | Building from source, tests and local runs |
+| [Roadmap](docs/ROADMAP.md) | Known limitations and planned work |
 
 ## Feedback
 
-Report bugs through [GitHub Issues](https://github.com/ShiroTsuma/Gachabot/issues). Include the commit, deployment method, affected source or guild workflow, reproduction steps and sanitized logs. Never include bot tokens, OAuth secrets or database credentials.
+Report bugs in [Issues](https://github.com/ShiroTsuma/Gachabot/issues). Include the commit, how you deploy, the affected source or server workflow, steps to reproduce, and sanitized logs. Never paste bot tokens, OAuth secrets or database credentials.
 
 ## License and attribution
 
-Gachabot is [source-available](LICENSE). Individuals may run an unmodified instance for personal, non-commercial use. Redistribution, commercial use and distribution of modified versions require written permission from ShiroTsuma.
+Gachabot is [source-available](LICENSE). Individuals may run an unmodified instance for personal, non-commercial use. Redistribution, commercial use and distributing modified versions require written permission from ShiroTsuma.
 
-This is an independent project, not affiliated with Discord, Kuro Games, Hotta Studio, Game8 or WuWa Tracker. Source content and game artwork belong to their respective owners. Review source terms before enabling an integration.
-
-The Suisui icon is game artwork by Kuro Games; see [asset attribution](docs/ASSETS.md).
+Gachabot is an independent project with no affiliation with Discord, Kuro Games, Hotta Studio, Game8 or WuWa Tracker. Announcements and game artwork belong to their owners; review each source's terms before enabling it. The Suisui icon is game artwork by Kuro Games; see [asset attribution](docs/ASSETS.md).

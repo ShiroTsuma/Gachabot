@@ -72,6 +72,8 @@ h2 { font-size: 15px; line-height: 1.35; }
 
 .page-frame { width: min(1600px, 100%); margin-inline: auto; padding: 32px 32px 64px; }
 .page-frame:focus { outline: none; }
+/* Blazor moves focus to the page heading after navigation for screen readers; it is not a control. */
+h1:focus, h1:focus-visible { outline: none; }
 
 /* Page heading */
 

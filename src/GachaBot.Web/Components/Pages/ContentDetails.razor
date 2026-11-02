@@ -178,7 +178,7 @@ else
                                     }
                                     @if (embed.Description is not null)
                                     {
-                                        <p class="discord-embed-description">@embed.Description</p>
+                                        <p class="discord-embed-description">@DiscordMarkdown(embed.Description)</p>
                                     }
                                     @if (embed.Fields.Count > 0)
                                     {
@@ -187,7 +187,7 @@ else
                                             {
                                                 <div class="@(field.Inline ? "inline" : null)">
                                                     <dt>@field.Name</dt>
-                                                    <dd>@field.Value</dd>
+                                                    <dd>@DiscordMarkdown(field.Value)</dd>
                                                 </div>
                                             }
                                         </dl>
@@ -328,6 +328,30 @@ else
         string.IsNullOrWhiteSpace(destination.ChannelName) ? destination.ChannelId.ToString() : destination.ChannelName;
 
     private static string EmbedAccent(int color) => $"--embed-accent: #{color:X6}";
+
+    // Renders the Markdown subset the composer emits (links, bold, timestamps, escapes) the way
+    // Discord shows it. The text is HTML-encoded first, so only these constructs become markup.
+    private static MarkupString DiscordMarkdown(string text)
+    {
+        var html = System.Net.WebUtility.HtmlEncode(text);
+        html = System.Text.RegularExpressions.Regex.Replace(
+            html, @"\\([\\*_~`\[\]])", match => $"&#{(int)match.Groups[1].Value[0]};");
+        html = System.Text.RegularExpressions.Regex.Replace(
+            html, @"\[([^\]]+)\]\((https?://[^\s)]+)\)", "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"&lt;t:(\d+):([FfDdTtR])&gt;", match =>
+        {
+            var at = DateTimeOffset.FromUnixTimeSeconds(long.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)).ToLocalTime();
+            if (match.Groups[2].Value != "R")
+            {
+                return at.ToString("dd MMM yyyy, HH:mm", System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+            }
+
+            var days = (int)Math.Round((at - DateTimeOffset.Now).TotalDays);
+            return days == 0 ? "today" : days > 0 ? $"in {days} days" : $"{-days} days ago";
+        });
+        return new MarkupString(html);
+    }
 
     private static IEnumerable<Uri> AutoEmbedLinks(string content) => content
         .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
