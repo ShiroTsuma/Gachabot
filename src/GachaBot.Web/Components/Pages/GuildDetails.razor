@@ -130,7 +130,7 @@ else
                                         <small class="publication-error">@item.LastError</small>
                                     }
                                 </td>
-                                <td><span class="game-code game-@item.Game">@GameCode(item.Game)</span><small>@KindLabel(item.Kind) · @PurposeLabel(item.Purpose)</small></td>
+                                <td><span class="game-code game-@item.Game">@GameCode(item.Game) <small>@KindLabel(item.Kind) · @PurposeLabel(item.Purpose)</small></span></td>
                                 <td><span class="status-chip publication-state-@item.State.ToLowerInvariant()">@StateLabel(item.State)</span></td>
                                 <td><time>@item.UpdatedAtUtc.ToLocalTime().ToString("dd MMM · HH:mm", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</time></td>
                                 <td>@item.AttemptCount</td>

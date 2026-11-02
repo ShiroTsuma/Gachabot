@@ -176,6 +176,8 @@ h2 { font-size: 15px; line-height: 1.35; }
 
 label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 500; }
 .optional { color: var(--faint); font-weight: 400; }
+label:has(> .optional) { grid-template-columns: auto 1fr; column-gap: 8px; }
+label:has(> .optional) > :not(.optional) { grid-column: 1 / -1; }
 input, textarea, select { width: 100%; min-height: 34px; padding: 6px 10px; color: var(--text); background: var(--bg); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font-size: 14px; }
 select { padding-right: 28px; }
 textarea { resize: vertical; line-height: 1.5; }
@@ -183,7 +185,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); outline
 .validation-message, .form-error { margin: 0; color: var(--danger); font-size: 13px; }
 .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
-.editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+.editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
 .editor-panel { display: grid; gap: 16px; padding: 20px; }
 .editor-sidebar { display: grid; gap: 16px; }
 .schedule-panel { position: sticky; top: 68px; }
@@ -200,7 +202,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); outline
 .data-table tbody tr:hover { background: var(--surface-2); }
 .data-table td small { color: var(--muted); font-size: 12px; }
 .data-table td:has(> .status-chip), .data-table td:has(> .game-code), .data-table td > time { white-space: nowrap; }
-.data-table .game-code { vertical-align: middle; }
+.game-code small { font-weight: 400; }
 .data-table td > .status-chip + small { margin-left: 6px; }
 .sort-link { display: inline-flex; gap: 4px; align-items: center; color: inherit; }
 .sort-link:hover { color: var(--text); }

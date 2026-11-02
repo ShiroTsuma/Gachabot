@@ -98,7 +98,7 @@ else
                     @foreach (var item in SortedItems())
                     {
                         <tr>
-                            <td><span class="game-code game-@item.Game">@GameCode(item.Game)</span> <small>@item.Kind</small></td>
+                            <td><span class="game-code game-@item.Game">@GameCode(item.Game) <small>@item.Kind</small></span></td>
                             <td>
                                 <a class="content-title-link" href="/content/@item.Id"><strong>@item.Title</strong></a>
                                 <small class="source-key">
