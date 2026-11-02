@@ -133,11 +133,8 @@ internal static partial class SourceParsing
             return ContentKind.Maintenance;
         }
 
-        if (value.Contains("event", StringComparison.OrdinalIgnoreCase))
-        {
-            return ContentKind.Event;
-        }
-
+        // Articles about events are not events: only dated calendar entries may be ContentKind.Event,
+        // otherwise they reach the events topic and bypass each guild's start/ending reminder settings.
         if (value.Contains("patch", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("update", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("version", StringComparison.OrdinalIgnoreCase))
