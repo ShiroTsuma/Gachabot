@@ -50,14 +50,17 @@ public sealed partial class DiscordChannelPublisher(
                 attachmentCount,
                 imageCount - attachmentCount);
             }
-            if (!string.IsNullOrWhiteSpace(payload.ExistingProviderMessageId))
+            // A changed code list is news: an edit to an old message further up the channel goes unnoticed.
+            // The old post is only removed in guilds that asked for obsolete posts to be deleted.
+            var repost = payload.Kind == GachaBot.Domain.Content.ContentKind.RedeemCode;
+            if (!string.IsNullOrWhiteSpace(payload.ExistingProviderMessageId) &&
+                (!repost || payload.Destination.DeleteObsoleteMessages))
             {
                 return await UpdateExistingAsync(
                     channel,
                     payload.ExistingProviderMessageId,
                     messages,
-                    // A changed code list is news: an edit to an old message further up the channel goes unnoticed.
-                    repost: payload.Kind == GachaBot.Domain.Content.ContentKind.RedeemCode,
+                    repost,
                     cancellationToken).ConfigureAwait(false);
             }
 
