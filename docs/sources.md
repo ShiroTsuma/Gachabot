@@ -38,7 +38,7 @@ Brak kolejnej strony listy (`404`) oznacza naturalny koniec paginacji i nie ozna
 
 Daty eventów Wuthering Waves z WuWa Tracker są normalizowane do resetu serwera o 04:00 w skonfigurowanej strefie UTC+8. Godzina osadzona w źródłowym payloadzie nie jest używana jako godzina rozpoczęcia lub zakończenia eventu.
 
-Definicja NTE ignoruje techniczne duplikaty obrazów z `docs.oa.wanmei.net`; artykuł potrafi zawierać obok nich właściwe grafiki z CDN `ntevmg.perfectworld.com`. Lista ignorowanych hostów jest regułą JSON (`IgnoredImageHosts`), a nie warunkiem zaszytym w parserze.
+Definicja NTE ignoruje techniczne duplikaty obrazów z `docs.oa.wanmei.net`; artykuł potrafi zawierać obok nich właściwe grafiki z CDN `ntevmg.perfectworld.com`. Lista ignorowanych hostów jest regułą JSON (`IgnoredImageHosts`), a nie warunkiem zaszytym w parserze. Podobnie `IgnoredTitlePrefixes` pomija artykuły po początku tytułu; NTE pomija w ten sposób cykliczne „Account Action Notice”.
 
 Game8 najpierw potrafi zwrócić HTTP `202` i dopiero po wykonaniu wyzwania JavaScript udostępnia dokument. Handler Playwright nie uznaje początkowego statusu za wynik: czeka na skonfigurowany element DOM, a deklaratywne reguły odczytują kod, nagrody i datę wygaśnięcia z wiersza tabeli. Kody bieżącej wersji i kody permanentne trafiają do osobnych wpisów (`aggregate:current` i `aggregate:permanent`). Sekcja ogólna „All Active” nie zastępuje pustej sekcji bieżącej wersji. Kod po dacie ważności jest zachowywany jako osobny rekord archiwalny z nagrodami. Nierozpoznane daty nie są publikowane. Game8 pozostaje źródłem pomocniczym i ma `ReviewRequired`.
 

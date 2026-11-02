@@ -88,7 +88,8 @@ public sealed partial class PagedHtmlArticleFeedHandler(
                 }
 
                 var title = Text(anchor, rules.TitleSelector);
-                if (string.IsNullOrWhiteSpace(title))
+                if (string.IsNullOrWhiteSpace(title) ||
+                    rules.IgnoredTitlePrefixes.Any(prefix => title.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
                 {
                     continue;
                 }
