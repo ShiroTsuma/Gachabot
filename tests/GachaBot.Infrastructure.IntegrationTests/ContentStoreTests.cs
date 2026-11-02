@@ -302,6 +302,112 @@ public sealed class ContentStoreTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpsertAsync_AdoptsSameEventEditionStoredUnderItsPreviousId()
+    {
+        var now = new DateTimeOffset(2026, 11, 2, 12, 0, 0, TimeSpan.Zero);
+        var destinations = new FixedDestinationStore(
+        [
+            new GuildDestination(101, 201, 301, true, GuildDestinationGames.All, now),
+        ]);
+        var store = new ContentStore(_db, new FixedTimeProvider(now), destinations);
+        var startsAt = now.AddDays(-3);
+        var legacy = Snapshot("Gold Clash") with
+        {
+            SourceKey = "game8-nte-events",
+            ExternalId = "games:archives:611834",
+            Kind = ContentKind.Event,
+            Title = "Gold Clash",
+            PublishedAtUtc = startsAt,
+            ExpiresAtUtc = startsAt.AddDays(14),
+            PublishAtUtc = startsAt,
+        };
+        await store.UpsertAsync(legacy, PublicationDisposition.ScheduleUpcoming, TestContext.Current.CancellationToken);
+        var publicationsBefore = await _db.Publications.CountAsync(TestContext.Current.CancellationToken);
+
+        var outcome = await store.UpsertAsync(
+            legacy with { ExternalId = $"games:archives:611834:{startsAt:yyyyMMdd}" },
+            PublicationDisposition.ScheduleUpcoming,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(ContentUpsertOutcome.Unchanged, outcome);
+        var content = await _db.ContentItems.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal($"games:archives:611834:{startsAt:yyyyMMdd}", content.ExternalId);
+        Assert.Equal(publicationsBefore, await _db.Publications.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task UpsertAsync_ScheduleUpcomingChangedEventDoesNotQueueRegularPost()
+    {
+        var now = new DateTimeOffset(2026, 10, 13, 16, 0, 0, TimeSpan.Zero);
+        var destinations = new FixedDestinationStore(
+        [
+            new GuildDestination(
+                101,
+                201,
+                301,
+                true,
+                GuildDestinationGames.All,
+                now,
+                EventStartOffsetHours: -1,
+                EventEndOffsetHours: 48),
+        ]);
+        var store = new ContentStore(_db, new FixedTimeProvider(now), destinations);
+        var startsAt = now.AddDays(8);
+        var original = Snapshot("Banner") with
+        {
+            Kind = ContentKind.Event,
+            PublishedAtUtc = startsAt,
+            ExpiresAtUtc = startsAt.AddDays(20),
+            PublishAtUtc = startsAt,
+        };
+
+        await store.UpsertAsync(original, PublicationDisposition.ScheduleUpcoming, TestContext.Current.CancellationToken);
+        await store.UpsertAsync(
+            original with { Document = ContentDocument.Create([new TextBlock("Banner with new details", 1)]) },
+            PublicationDisposition.ScheduleUpcoming,
+            TestContext.Current.CancellationToken);
+
+        var publications = await _db.Publications.ToListAsync(TestContext.Current.CancellationToken);
+        Assert.All(publications, publication => Assert.Equal(PublicationPurpose.EventEndingReminder, publication.Purpose));
+        var pending = Assert.Single(publications, publication => publication.State == PublicationState.Pending);
+        Assert.Equal(startsAt.AddDays(18), pending.DueAtUtc);
+    }
+
+    [Fact]
+    public async Task ReconcileEventPublicationsForGuildAsync_ReschedulesPendingReminderWithNewOffset()
+    {
+        var now = new DateTimeOffset(2026, 10, 13, 16, 0, 0, TimeSpan.Zero);
+        var startsAt = now.AddDays(1);
+        var endsAt = startsAt.AddDays(20);
+        GuildDestination Destination(double endOffsetHours) => new(
+            101,
+            201,
+            301,
+            true,
+            GuildDestinationGames.All,
+            now,
+            EventStartOffsetHours: -1,
+            EventEndOffsetHours: endOffsetHours);
+        var snapshot = Snapshot("Banner") with
+        {
+            Kind = ContentKind.Event,
+            PublishedAtUtc = startsAt,
+            ExpiresAtUtc = endsAt,
+            PublishAtUtc = startsAt,
+        };
+        await new ContentStore(_db, new FixedTimeProvider(now), new FixedDestinationStore([Destination(48)]))
+            .UpsertAsync(snapshot, PublicationDisposition.ScheduleUpcoming, TestContext.Current.CancellationToken);
+
+        await new ContentStore(_db, new FixedTimeProvider(now), new FixedDestinationStore([Destination(24)]))
+            .ReconcileEventPublicationsForGuildAsync(101, TestContext.Current.CancellationToken);
+
+        var pending = Assert.Single(
+            await _db.Publications.ToListAsync(TestContext.Current.CancellationToken),
+            publication => publication.State == PublicationState.Pending);
+        Assert.Equal(endsAt.AddHours(-24), pending.DueAtUtc);
+    }
+
+    [Fact]
     public async Task ObsoleteDiscordPublications_AreListedAndMarkedDeleted()
     {
         var now = new DateTimeOffset(2026, 8, 22, 16, 0, 0, TimeSpan.Zero);

@@ -41,7 +41,8 @@
         "MaximumPages": 100,
         "StopWhenKnown": true,
         "StopOnMissingPage": true,
-        "IgnoredImageHosts": ["docs.oa.wanmei.net"]
+        "IgnoredImageHosts": ["docs.oa.wanmei.net"],
+        "IgnoredTitlePrefixes": ["Account Action Notice"]
       }
     },
     {

@@ -150,14 +150,13 @@ public sealed class SafeRemoteMediaArchive(
                 objectKey);
             return archived;
         }
-        catch
+        finally
         {
+            // The archived copy lives in object storage; the staged download is only needed until upload.
             if (File.Exists(temporaryPath))
             {
                 File.Delete(temporaryPath);
             }
-
-            throw;
         }
     }
 

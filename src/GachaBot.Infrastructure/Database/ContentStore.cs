@@ -96,6 +96,32 @@ public sealed class ContentStore(
             }
         }
 
+        var previousEventId = snapshot.ExternalId.LastIndexOf(':') is > 0 and var separator
+            ? snapshot.ExternalId[..separator]
+            : null;
+        if (existing is null && previousEventId is not null && snapshot.Kind == ContentKind.Event &&
+            snapshot.PublishedAtUtc is not null && snapshot.ExpiresAtUtc is not null)
+        {
+            // Event IDs gained the edition's start date; adopt the same edition stored under its
+            // previous ID so it keeps its sent posts and reminders instead of being announced again.
+            existing = await dbContext.ContentItems
+                .Where(item =>
+                    item.SourceKey == snapshot.SourceKey &&
+                    item.Kind == ContentKind.Event &&
+                    item.Status != ContentStatus.Archived &&
+                    item.Title == snapshot.Title &&
+                    item.SourcePublishedAtUtc == snapshot.PublishedAtUtc &&
+                    item.ExpiresAtUtc == snapshot.ExpiresAtUtc &&
+                    item.ExternalId == previousEventId)
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (existing is not null)
+            {
+                existing.Identity = snapshot.Identity;
+                existing.ExternalId = snapshot.ExternalId;
+            }
+        }
+
         var now = timeProvider.GetUtcNow();
         var isExplicitlyExpired = snapshot.ExpiresAtUtc.HasValue && snapshot.ExpiresAtUtc.Value < now;
         var isRetentionExpired = IsRetentionExpired(snapshot, now);
@@ -148,12 +174,15 @@ public sealed class ContentStore(
             if (!isAlreadyExpired && shouldQueuePublication)
             {
                 created.ScheduledAtUtc = publicationDueAtUtc;
-                if (disposition == PublicationDisposition.ScheduleUpcoming &&
-                    await AddEventPublicationsAsync(created, cancellationToken).ConfigureAwait(false))
+                if (disposition == PublicationDisposition.ScheduleUpcoming && IsDatedEvent(created))
                 {
-                    created.Status = created.ScheduledAtUtc > now
-                        ? ContentStatus.Scheduled
-                        : ContentStatus.Active;
+                    // Dated events only get the start/ending posts each guild enabled, never a regular post.
+                    if (await AddEventPublicationsAsync(created, cancellationToken).ConfigureAwait(false))
+                    {
+                        created.Status = created.ScheduledAtUtc > now
+                            ? ContentStatus.Scheduled
+                            : ContentStatus.Active;
+                    }
                 }
                 else
                 {
@@ -283,12 +312,14 @@ public sealed class ContentStore(
                 await CancelPendingPublicationsAsync([existing.Id], now, cancellationToken).ConfigureAwait(false);
             }
 
-            if (disposition == PublicationDisposition.ScheduleUpcoming &&
-                await AddEventPublicationsAsync(existing, cancellationToken).ConfigureAwait(false))
+            if (disposition == PublicationDisposition.ScheduleUpcoming && IsDatedEvent(existing))
             {
-                existing.Status = existing.ScheduledAtUtc > now
-                    ? ContentStatus.Scheduled
-                    : ContentStatus.Active;
+                if (await AddEventPublicationsAsync(existing, cancellationToken).ConfigureAwait(false))
+                {
+                    existing.Status = existing.ScheduledAtUtc > now
+                        ? ContentStatus.Scheduled
+                        : ContentStatus.Active;
+                }
             }
             else
             {
@@ -1009,9 +1040,7 @@ public sealed class ContentStore(
         DateTimeOffset dueAtUtc,
         CancellationToken cancellationToken)
     {
-        if (content.Kind == ContentKind.Event &&
-            content.SourcePublishedAtUtc.HasValue &&
-            content.ExpiresAtUtc.HasValue)
+        if (IsDatedEvent(content))
         {
             return await AddEventPublicationsAsync(content, cancellationToken).ConfigureAwait(false);
         }
@@ -1032,15 +1061,16 @@ public sealed class ContentStore(
         var added = false;
         foreach (var destination in destinations.Where(destination => destination.SubscribesTo(content.Game, content.Kind)))
         {
-            var exists = await dbContext.Publications.AnyAsync(
-                publication =>
+            var exists = (await dbContext.Publications
+                .Where(publication =>
                     publication.ContentId == content.Id &&
                     publication.DestinationGuildId == checked((long)destination.GuildId) &&
                     publication.DestinationChannelId == checked((long)destination.ChannelId) &&
                     (publication.State == PublicationState.Pending ||
                      publication.State == PublicationState.Processing ||
-                     publication.State == PublicationState.Published),
-                cancellationToken).ConfigureAwait(false);
+                     publication.State == PublicationState.Published))
+                .ToListAsync(cancellationToken).ConfigureAwait(false))
+                .Any(IsLive);
             if (exists)
             {
                 continue;
@@ -1052,6 +1082,16 @@ public sealed class ContentStore(
 
         return added;
     }
+
+    // Rows cancelled earlier in this unit of work are still Pending in the database; the tracked
+    // entity returned by the query carries the unsaved state, so re-check it here.
+    private static bool IsLive(PublicationRecord publication) =>
+        publication.State is PublicationState.Pending or PublicationState.Processing or PublicationState.Published;
+
+    private static bool IsDatedEvent(ContentRecord content) =>
+        content.Kind == ContentKind.Event &&
+        content.SourcePublishedAtUtc.HasValue &&
+        content.ExpiresAtUtc.HasValue;
 
     private void AddPublication(
         ContentRecord content,
@@ -1183,16 +1223,17 @@ public sealed class ContentStore(
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        var exists = await dbContext.Publications.AnyAsync(
-            publication =>
+        var exists = (await dbContext.Publications
+            .Where(publication =>
                 publication.ContentId == content.Id &&
                 publication.DestinationGuildId == checked((long)destination.GuildId) &&
                 publication.DestinationChannelId == checked((long)destination.ChannelId) &&
                 publication.Purpose == purpose &&
                 (publication.State == PublicationState.Pending ||
                  publication.State == PublicationState.Processing ||
-                 publication.State == PublicationState.Published),
-            cancellationToken).ConfigureAwait(false);
+                 publication.State == PublicationState.Published))
+            .ToListAsync(cancellationToken).ConfigureAwait(false))
+            .Any(IsLive);
         if (exists)
         {
             return false;

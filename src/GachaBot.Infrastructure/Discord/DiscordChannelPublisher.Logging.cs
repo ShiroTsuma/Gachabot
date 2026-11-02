@@ -26,4 +26,13 @@ public sealed partial class DiscordChannelPublisher
         int messageCount,
         int attachmentCount,
         long attachmentBytes);
+
+    [LoggerMessage(
+        EventId = 4003,
+        Level = LogLevel.Warning,
+        Message = "Could not remove the partly sent Discord post for {ContentId}; the retry may duplicate it.")]
+    private static partial void LogPartialPostCleanupFailed(
+        ILogger logger,
+        Guid contentId,
+        Exception exception);
 }

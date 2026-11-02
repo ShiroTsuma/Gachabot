@@ -50,36 +50,23 @@ public sealed partial class DiscordChannelPublisher(
                 attachmentCount,
                 imageCount - attachmentCount);
             }
-            if (!string.IsNullOrWhiteSpace(payload.ExistingProviderMessageId))
+            // A changed code list is news: an edit to an old message further up the channel goes unnoticed.
+            // The old post is only removed in guilds that asked for obsolete posts to be deleted.
+            var repost = payload.Kind == GachaBot.Domain.Content.ContentKind.RedeemCode;
+            if (!string.IsNullOrWhiteSpace(payload.ExistingProviderMessageId) &&
+                (!repost || payload.Destination.DeleteObsoleteMessages))
             {
                 return await UpdateExistingAsync(
                     channel,
                     payload.ExistingProviderMessageId,
                     messages,
+                    repost,
+                    payload.ContentId,
                     cancellationToken).ConfigureAwait(false);
             }
 
-            var messageIds = new List<ulong>(messages.Count);
-            for (var index = 0; index < messages.Count; index++)
-            {
-            cancellationToken.ThrowIfCancellationRequested();
-            var outboundMessage = messages[index];
-            if (logger.IsEnabled(LogLevel.Information))
-            {
-                var attachmentBytes = outboundMessage.Attachments.Sum(attachment => attachment.Length);
-                LogMessageSendStarted(
-                    logger,
-                    payload.ContentId,
-                    index + 1,
-                    messages.Count,
-                    outboundMessage.Attachments.Count,
-                    attachmentBytes);
-            }
-            var message = await DiscordMessageSender.SendAsync(channel, outboundMessage, cancellationToken)
+            var messageIds = await SendAllAsync(channel, payload.ContentId, messages, cancellationToken)
                 .ConfigureAwait(false);
-            messageIds.Add(message.Id);
-            }
-
             return new PublishReceipt(
                 DiscordProviderMessageIds.Format(messageIds),
                 timeProvider.GetUtcNow());
@@ -113,24 +100,68 @@ public sealed partial class DiscordChannelPublisher(
             new RequestOptions { CancelToken = cancellationToken }).ConfigureAwait(false);
     }
 
+    private async Task<List<ulong>> SendAllAsync(
+        ITextChannel channel,
+        Guid contentId,
+        IReadOnlyList<DiscordPreparedMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        var messageIds = new List<ulong>(messages.Count);
+        try
+        {
+            for (var index = 0; index < messages.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var outboundMessage = messages[index];
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    var attachmentBytes = outboundMessage.Attachments.Sum(attachment => attachment.Length);
+                    LogMessageSendStarted(
+                        logger,
+                        contentId,
+                        index + 1,
+                        messages.Count,
+                        outboundMessage.Attachments.Count,
+                        attachmentBytes);
+                }
+
+                var message = await DiscordMessageSender.SendAsync(channel, outboundMessage, cancellationToken)
+                    .ConfigureAwait(false);
+                messageIds.Add(message.Id);
+            }
+        }
+        catch when (messageIds.Count > 0)
+        {
+            // A retry sends every part again, so remove the parts that already went out.
+            try
+            {
+                await DeleteMessagesAsync(channel, messageIds, new RequestOptions()).ConfigureAwait(false);
+            }
+            catch (Exception cleanupException)
+            {
+                LogPartialPostCleanupFailed(logger, contentId, cleanupException);
+            }
+
+            throw;
+        }
+
+        return messageIds;
+    }
+
     private async Task<PublishReceipt> UpdateExistingAsync(
         ITextChannel channel,
         string providerMessageId,
         IReadOnlyList<DiscordPreparedMessage> messages,
+        bool repost,
+        Guid contentId,
         CancellationToken cancellationToken)
     {
         var requestOptions = new RequestOptions { CancelToken = cancellationToken };
         var existingIds = DiscordProviderMessageIds.Parse(providerMessageId);
-        if (messages.Any(message => message.Attachments.Count > 0))
+        if (repost || messages.Any(message => message.Attachments.Count > 0))
         {
-            var replacementIds = new List<ulong>(messages.Count);
-            foreach (var outbound in messages)
-            {
-                var replacement = await DiscordMessageSender.SendAsync(channel, outbound, cancellationToken)
-                    .ConfigureAwait(false);
-                replacementIds.Add(replacement.Id);
-            }
-
+            var replacementIds = await SendAllAsync(channel, contentId, messages, cancellationToken)
+                .ConfigureAwait(false);
             await DeleteMessagesAsync(channel, existingIds, requestOptions).ConfigureAwait(false);
             return new PublishReceipt(
                 DiscordProviderMessageIds.Format(replacementIds),
@@ -149,9 +180,16 @@ public sealed partial class DiscordChannelPublisher(
                 continue;
             }
 
-            var message = await channel.GetMessageAsync(existingIds[index], CacheMode.AllowDownload, requestOptions)
-                .ConfigureAwait(false) as IUserMessage
-                ?? throw new InvalidOperationException("The Discord message to update no longer exists.");
+            if (await channel.GetMessageAsync(existingIds[index], CacheMode.AllowDownload, requestOptions)
+                    .ConfigureAwait(false) is not IUserMessage message)
+            {
+                // Someone deleted the earlier post; send it again instead of failing on every retry.
+                var replacement = await DiscordMessageSender.SendAsync(channel, outboundMessage, cancellationToken)
+                    .ConfigureAwait(false);
+                currentIds.Add(replacement.Id);
+                continue;
+            }
+
             var embeds = DiscordMessageSender.BuildEmbeds(outboundMessage.Embeds);
             await message.ModifyAsync(properties =>
             {

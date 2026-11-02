@@ -146,8 +146,9 @@ public sealed partial class Game8EventCalendarHandler(IRenderedPageClient pageCl
             }
         }
 
+        // Recurring events reuse one Game8 page, so the start date keeps each edition separate.
         var externalId = detailsUrl != definition.Url
-            ? detailsUrl.AbsolutePath.Trim('/').Replace('/', ':')
+            ? $"{detailsUrl.AbsolutePath.Trim('/').Replace('/', ':')}:{startAtUtc:yyyyMMdd}"
             : $"{Slug(title)}:{startAtUtc:yyyyMMdd}";
         candidate = new EventCandidate(
             externalId,
@@ -241,6 +242,12 @@ public sealed partial class Game8EventCalendarHandler(IRenderedPageClient pageCl
                 out var endDate))
         {
             return false;
+        }
+
+        // "December 28 - January 11, 2027" only states the end year; the start is in the year before.
+        if (!match.Groups["startYear"].Success && startDate > endDate)
+        {
+            startDate = startDate.AddYears(-1);
         }
 
         var offset = TimeSpan.FromHours(utcOffsetHours);

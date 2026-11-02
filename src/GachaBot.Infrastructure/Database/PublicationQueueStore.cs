@@ -129,7 +129,9 @@ public sealed class PublicationQueueStore(
         CancellationToken cancellationToken)
     {
         var publication = await RequireAsync(publicationId, cancellationToken).ConfigureAwait(false);
-        publication.State = publication.AttemptCount >= 8 ? PublicationState.Failed : PublicationState.Pending;
+        // Backoff caps at 15 minutes, so this keeps retrying for about a day and survives a Discord outage
+        // or a missing channel permission that gets fixed later.
+        publication.State = publication.AttemptCount >= 100 ? PublicationState.Failed : PublicationState.Pending;
         publication.LastError = failureMessage.Length <= 2_000
             ? failureMessage
             : failureMessage[..2_000];
