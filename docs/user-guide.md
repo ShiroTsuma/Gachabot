@@ -1,104 +1,91 @@
-# Instrukcja operatora
+# Dashboard guide
 
-## Uruchomienie
+[Back to the documentation index](README.md)
 
-### Lokalnie, bez publikacji na Discord
+The dashboard is where you check what Gachabot imported, what it will post, and where. Every page reads the same PostgreSQL data the bot publishes from, so what you see is what the queue will send.
 
-```powershell
-dotnet restore GachaBot.slnx --configfile NuGet.Config
-dotnet run --project src/GachaBot.Web
-```
+## Dashboard
 
-Otwórz `http://localhost:8791`. Konfiguracja Development pozwala wejść bez logowania. Przed startem ustaw `DatabaseStorage__ConnectionString` do PostgreSQL. Automatyczne workery są lokalnie wyłączone; pierwszy skan uruchom ze strony **Źródła**. Aby testować polling w tle, ustaw `Workers__Enabled=true` w konfiguracji uruchomieniowej.
+![Dashboard with content counts, ending and starting events, recent updates and source health](images/dashboard.png)
 
-W Riderze wybierz profil **GachaBot.Web: Development**. Uruchomienie przez konfigurację **.NET Project → GachaBot.Web** pomija `launchSettings.json` i bez dodatkowych zmiennych startuje jak środowisko produkcyjne. Alternatywnie ustaw w tej konfiguracji `ASPNETCORE_ENVIRONMENT=Development`.
+The landing page answers "is everything running?" at a glance:
 
-### Przez Docker Compose, z Discordem
+- **Counts** for active, scheduled, awaiting review and archived content. Each count links to the filtered content list; a non-zero review count is highlighted.
+- **Ending soon** lists running events ordered by end time, with the time left.
+- **Starting soon** lists announced events that have not started yet.
+- **Recently updated** shows the latest changed news, codes and updates.
+- **Sources** shows whether the last check of each source succeeded.
 
-```powershell
-Copy-Item .env.example .env
-docker compose up --build -d
-```
+The header shows when sources were last checked, as a date and a relative time.
 
-Uzupełnij `.env` przed startem. Potrzebujesz tokenu bota, identyfikatora serwera i kanału, danych OAuth oraz identyfikatora co najmniej jednego administratora. Panel działa pod `http://localhost:8791`.
+## Events
 
-## Odświeżanie źródeł
+![Event calendar with game artwork on each bar and a list of running and upcoming events](images/events.png)
 
-Otwórz stronę **Źródła**.
+The calendar starts on the current week's Monday and runs until the last known event ends. Each bar uses the event's artwork; teal marks Wuthering Waves and violet marks Neverness to Everness. Upcoming events are dimmed, and the yellow line marks today. Scroll the calendar sideways with the mouse wheel.
 
-- **Odśwież to źródło** uruchamia tylko adapter z danej karty.
-- **Odśwież wszystkie** uruchamia adaptery po kolei.
-- Wynik nad kartami podaje liczbę odczytanych pozycji. Po nieudanej próbie karta pokazuje czas i komunikat błędu.
-- **Zobacz wyciągnięte treści** otwiera indeks z filtrem `source` w adresie URL.
+Use the **All games / Wuthering Waves / Neverness to Everness** tabs to filter. Below the calendar, **Active now** is ordered by end time and **Upcoming** by start time. Times are shown in the server's timezone.
 
-Pierwszy udany odczyt tworzy baseline. Dla źródeł oficjalnych bot zapisuje treści w PostgreSQL, ale nie publikuje starego katalogu. Źródło `ReviewRequired`, takie jak Game8, od razu tworzy kandydaturę do ręcznej akceptacji, lecz nigdy nie publikuje jej automatycznie. Przy kolejnych odczytach bot porównuje tożsamość wpisu, tytuł i hash dokumentu. Zmiana tworzy rewizję.
+## Content
 
-## Podgląd danych i Discord
+![Content list with filters, game and type, status and update times](images/content.png)
 
-Otwórz **Treści**, a potem kliknij tytuł wpisu.
+The content list holds news, updates, maintenance notices, character posts and redeem codes. Events have their own calendar and are not listed here.
 
-Strona szczegółów ma dwie kolumny:
+- Filter by game, type, publication state and source, or search by title and source.
+- Click a column header to sort; click again to reverse. Items without a source date stay last in both directions.
+- Row actions: **Approve & publish** (items awaiting review), **Archive**, **Republish**, and **Restore** for archived items.
 
-- **Dane wyciągnięte ze źródła** pokazują bloki po parsowaniu: nagłówki, tekst, linki, obrazy, galerie, pola key/value i kod.
-- **Podgląd Discord** używa tego samego kompozytora co publikator. Pokazuje każdą wiadomość i każdy rich embed: tytuł, opis, pola, kolor, obraz oraz stopkę.
+## Content details
 
-Tytuł embedu jest linkiem do strony źródłowej. Nagłówki, tekst, linki i bloki kodu trafiają do opisu; bloki key/value stają się polami, a grafiki obrazami. Pierwsza grafika jest częścią głównego embedu, a pozostałe dostają własne embedy ze stopką z podpisu lub tekstu alternatywnego.
+![Extracted content blocks next to the Discord message preview](images/publication-preview.png)
 
-Linki do konkretnych filmów YouTube z `youtube.com`, `youtu.be` i iframe `youtube-nocookie.com` są normalizowane i deduplikowane. Bot wysyła taki adres jako zwykłe pole `content`, ponieważ aplikacje Discord nie mogą bezpośrednio ustawiać pola `video` rich embeda. Discord tworzy natywny podgląd filmu, jeżeli bot ma uprawnienie **Embed Links**, a podglądy linków nie są wyłączone po stronie serwera lub klienta. Dashboard pokazuje adres i oznaczenie natywnego podglądu; tytuł, miniatura i odtwarzacz pojawią się dopiero po przetworzeniu wiadomości przez Discord.
+The left column shows the content after parsing: headings, text, links, images, galleries, key/value fields and code blocks. The right column renders the exact Discord messages the publisher will send, using the same composer as the bot. Expand **Raw payload** to see the JSON.
 
-Kompozytor respektuje [oficjalne limity Discord](https://docs.discord.com/developers/resources/message#embed-limits): 256 znaków tytułu, 4096 opisu, 25 pól, 256 znaków nazwy pola, 1024 wartości pola, 2048 stopki, maksymalnie 10 embedów i 6000 znaków wszystkich embedów w jednej wiadomości. Zwykłe pole `content` ma limit 2000 znaków. Większy dokument jest dzielony na kilka wiadomości; bot zapisuje wszystkie ich ID, aby kolejna wersja mogła edytować, dodać albo usunąć odpowiednie części bez pozostawiania starych fragmentów.
+From this page you can approve, archive, publish again, delete permanently, or **send to one guild only**. Only active guilds that follow the content's game and subject can be selected.
 
-Panel pokazuje stylizowaną symulację oraz rozwijany **Dokładny payload** w JSON. Discord może użyć innej czcionki lub szerokości, ale dane podglądu i publikacji pochodzą z jednego planu wiadomości.
+How content becomes Discord messages:
 
-Zwykły tekst pobrany ze strony nie jest traktowany jako Markdown. Znaki takie jak `**` w zamaskowanych identyfikatorach kont są escapowane przed publikacją, a granice paragrafów, `<br>` i wierszy tabeli pozostają zachowane. Pole **Data źródła** pokazuje datę publikacji odczytaną ze strony niezależnie od czasu importu i publikacji przez bota.
+- The embed title links to the source. Headings, text, links and code go to the description; key/value blocks become fields; images become the main image and follow-up embeds.
+- Specific YouTube video links (`youtube.com`, `youtu.be`, `youtube-nocookie.com` iframes) are normalized and sent as plain message content, so Discord can render its own player. This needs the **Embed Links** permission.
+- Plain text from a source is not treated as Markdown; characters such as `**` are escaped.
+- The composer respects [Discord's message limits](https://docs.discord.com/developers/resources/message#embed-limits). Larger documents are split into several messages, and every message ID is stored, so a later revision can update or remove each part.
 
-Nagłówki tabeli **Treści** są przyciskami sortowania. Dostępna jest również **Data źródła**, niezależna od czasu importu. Kolejne kliknięcie tej samej kolumny przełącza kierunek; aktywny kierunek pokazuje strzałka i atrybut dostępności `aria-sort`. Wpisy bez daty źródłowej pozostają na końcu w obu kierunkach.
+## New post
 
-## Zatwierdzanie treści
+Write a manual announcement: message text, optional link and artwork (HTTPS URL with alt text), game, type and title. Leave the publication time empty to save a draft, or pick a time (Europe/Warsaw) to schedule it. Manual posts go to every active guild that follows the chosen game and subject.
 
-Źródła `Official` i `Trusted` mogą tworzyć automatyczne publikacje po baseline. Źródła `ReviewRequired`, w tym domyślne adaptery kodów Game8, zapisują kandydatów jako szkice do kontroli.
+## Sources
 
-Na stronie szczegółów kliknij **Zatwierdź i publikuj**. System ustawi bieżący czas jako termin i doda rekord do transactional outbox. Worker pobierze rekord, wyśle wiadomość i zapisze identyfikator zwrócony przez Discord. Gdy agregat kodów zmieni się po kolejnych skanach, ponownie wymaga akceptacji, a publikator edytuje poprzednią wiadomość Discord zamiast tworzyć duplikat. Kody są renderowane jako bloki kodu, dla których klient Discord udostępnia kopiowanie. Data wygaśnięcia ma format `dd.MM.yyyy` oraz natywny znacznik względnego czasu Discord, więc opublikowana wiadomość pokazuje także, ile czasu zostało.
+![Sources table with trust, status and last import for each source](images/sources.png)
 
-Game8 utrzymuje osobny wpis kodów bieżących i permanentnych. Jeśli sekcja bieżącej wersji jest pusta, bot nie uzupełnia jej kodami z ogólnej tabeli „All Active”; pusty agregat bieżący trafia do archiwum.
-Przy aktualizacji ze starszej wersji wspólny rekord `active-codes` jest migrowany do agregatu permanentnego z zachowaniem `ContentId` i identyfikatora wiadomości Discord.
+The sources table shows each source's trust level, last import time and status. A failed attempt shows its time; hover the status for the error message.
 
-## Reset pojedynczego źródła
+- **Refresh** runs one source now; **Refresh all** runs them in sequence. A summary of seen, new and changed items appears above the table.
+- The source name opens its imported content (events open the calendar).
 
-Każdy adapter ma własny schemat PostgreSQL, na przykład `official-neverness-to-everness` albo `game8-wuthering-waves-redeem-codes`. Aby wyczyścić tylko jedno źródło, zatrzymaj aplikację, wykonaj backup i wyczyść jego schemat na serwerze bazy. Po ponownym starcie aplikacja utworzy wymagane tabele, a ręczny refetch zbuduje nowy baseline.
+## Archive
 
-## Wpis ręczny
+Archived items with their type and last change. Each item shows why it was archived:
 
-Otwórz **Nowy wpis** i uzupełnij:
+| Reason | Meaning |
+| --- | --- |
+| `Expired` | The event or code ended. |
+| `Retention` | An official announcement is older than one month. |
+| `Superseded` | A newer code list replaced it. |
+| `Manual` | An operator archived it. A later refetch can update the document but never restores or republishes it. |
 
-1. grę, typ i tytuł;
-2. tekst oraz opcjonalny link i grafikę;
-3. opcjonalną datę publikacji.
+## Guilds
 
-Pusta data zapisuje szkic. Data z formularza jest interpretowana w strefie `Europe/Warsaw`, a PostgreSQL przechowuje ją w UTC. Po zapisaniu otwórz wpis z indeksu, aby sprawdzić podgląd.
+One card per Discord server: destination channel, followed games, event start and ending reminder offsets, and obsolete-post cleanup. **Queue and history** opens the guild's page with:
 
-## Archiwum
+- **What will be published**: pending posts with their purpose (publication, event start, ending reminder) and due time.
+- **Sent and settled publications**: delivered, failed and cancelled posts with attempt counts and errors.
 
-Przycisk **Archiwizuj** przenosi wpis do archiwum, zapisuje powód `Manual` i anuluje oczekującą publikację. Ręczna decyzja operatora jest trwała: późniejszy refetch może odświeżyć dokument i jego rewizję, ale nie zmieni statusu ani nie utworzy publikacji. Worker oznacza wygasłe wpisy powodem `Expired`, a agregaty zastępujące wcześniejsze rekordy używają `Superseded`. Powód jest widoczny w indeksie i szczegółach treści.
+Server settings are changed from Discord with the `gachabot-*` commands, not from the dashboard. See [Configure a guild](../README.md#configure-a-guild).
 
-Przy pierwszym uruchomieniu aplikacja tworzy wymagane schematy PostgreSQL. Istniejące wpisy zachowują zapisany powód archiwizacji.
+## Codes
 
-## Diagnostyka
+Redeem codes are published as two lists per game: current (time-limited) codes and permanent codes. Codes are rendered as code blocks, which Discord lets players copy, with the expiry date and a live relative time.
 
-```powershell
-docker compose ps
-docker compose logs --tail 200 gachabot
-```
-
-Sprawdź też:
-
-- `http://localhost:8791/health`, aby potwierdzić działanie hosta;
-- stronę **Źródła**, aby odczytać ostatnią próbę i błąd adaptera;
-- stronę **Treści**, aby sprawdzić status kolejki;
-- wynik `/gachabot-status` oraz `/gachabot-configure`, jeśli publikacja nie trafia na kanał.
-
-Brak publikacji po pierwszym skanie jest zgodny z mechanizmem baseline. Błąd jednego adaptera nie zatrzymuje pozostałych źródeł.
-
-Archiwum mediów rozdziela limit wejściowy od wyjściowego. `MediaArchive__MaximumDownloadSizeMegabytes` (domyślnie 50 MiB) ogranicza plik pobierany ze strony. Następnie bot próbuje zoptymalizować obraz do `MediaArchive__MaximumStoredImageSizeMegabytes` (domyślnie 9 MiB) i `MediaArchive__MaximumImageDimension` (domyślnie 4096 px). Gdy bezpieczna kompresja nie jest możliwa, oryginał nadal trafia do archiwum, a tabela `MediaAssets` otrzymuje stan `Uncompressable`. Źródła oficjalne publikują URL CDN, natomiast pozostałe źródła używają lokalnego `attachment://...`, jeśli plik mieści się w limicie Discorda.
-
-Istniejące kopie, również dla treści o statusie `Archived`, można odbudować bez resetowania bazy. Po zatrzymaniu bota `powershell -ExecutionPolicy Bypass -File .\scripts\Migrate-MediaArchive.ps1` pokazuje plan, a wariant z `-Apply` pobiera i kompresuje obrazy do nowej struktury. Parametr `-SourceKey` ogranicza migrację do jednego źródła. `-DeleteLegacy` jest opcjonalne i usuwa stary katalog haszowy tylko wtedy, gdy wszystkie bieżące grafiki wpisu zostały pomyślnie przeniesione.
+When a list changes, Gachabot posts the new list as a new message, so it appears at the bottom of the channel and notifies members. The previous message is deleted only in guilds with `delete-obsolete-posts` enabled. An expired code is kept as an archived record with its rewards.
