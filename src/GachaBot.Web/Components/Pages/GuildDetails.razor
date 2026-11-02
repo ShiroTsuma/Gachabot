@@ -16,19 +16,18 @@ else
 {
     <section class="page-heading compact">
         <div>
-            <p class="eyebrow">GUILD / @_destination.GuildId</p>
+            <p class="eyebrow"><a href="/guilds">Guilds</a> / @_destination.GuildId</p>
             <h1>@DisplayGuildName(_destination)</h1>
             <p class="lede">
                 Destination channel: <a href="@ChannelUrl(_destination)" target="_blank" rel="noopener noreferrer">#@DisplayChannelName(_destination) ↗</a>
                 · status: <strong>@(_destination.IsEnabled ? "active" : "paused")</strong>.
             </p>
         </div>
-        <a class="button button-quiet" href="/guilds">← All guilds</a>
     </section>
 
     <section class="guild-detail-grid">
         <article class="guild-config-panel">
-            <div class="section-label">TRACKED GAMES</div>
+            <h2 class="section-label">Tracked games</h2>
             <div class="guild-topics large">
                 @foreach (var game in _destination.Games.OrderBy(game => game))
                 {
@@ -48,7 +47,7 @@ else
         </article>
 
         <article class="guild-config-panel">
-            <div class="section-label">CONFIGURATION</div>
+            <h2 class="section-label">Configuration</h2>
             <dl class="guild-facts">
                 <div><dt>Guild ID</dt><dd>@_destination.GuildId</dd></div>
                 <div><dt>Channel ID</dt><dd>@_destination.ChannelId</dd></div>
@@ -77,7 +76,7 @@ else
                 {
                     <article class="scheduled-publication-card">
                         <header>
-                            <span class="game-code">@GameCode(item.Game)</span>
+                            <span class="game-code game-@item.Game">@GameCode(item.Game)</span>
                             <span class="queue-kind">@KindLabel(item.Kind)</span>
                             @if (item.Purpose != "Standard")
                             {
@@ -131,7 +130,7 @@ else
                                         <small class="publication-error">@item.LastError</small>
                                     }
                                 </td>
-                                <td><span class="game-code">@GameCode(item.Game)</span><small>@KindLabel(item.Kind) · @PurposeLabel(item.Purpose)</small></td>
+                                <td><span class="game-code game-@item.Game">@GameCode(item.Game) <small>@KindLabel(item.Kind) · @PurposeLabel(item.Purpose)</small></span></td>
                                 <td><span class="status-chip publication-state-@item.State.ToLowerInvariant()">@StateLabel(item.State)</span></td>
                                 <td><time>@item.UpdatedAtUtc.ToLocalTime().ToString("dd MMM · HH:mm", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</time></td>
                                 <td>@item.AttemptCount</td>
@@ -192,7 +191,7 @@ else
         ? "Wuthering Waves"
         : "Neverness to Everness";
 
-    private static string GameCode(GameKey game) => game == GameKey.WutheringWaves ? "WUWA" : "NTE";
+    private static string GameCode(GameKey game) => game == GameKey.WutheringWaves ? "WuWa" : "NTE";
 
     private string DueLabel(GuildPublicationHistoryItem item)
     {
