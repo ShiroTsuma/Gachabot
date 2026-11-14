@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0.403 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0.100 AS build
 WORKDIR /src
 
 COPY NuGet.Config global.json Directory.Build.props Directory.Packages.props GachaBot.slnx ./
